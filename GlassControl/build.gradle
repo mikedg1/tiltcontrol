@@ -1,0 +1,76 @@
+/*apply plugin: 'android'
+
+dependencies {
+    compile files('libs/android-support-v4.jar')
+}
+
+android {
+    compileSdkVersion 19
+    buildToolsVersion "19.0.1"
+
+    defaultConfig {
+        minSdkVersion 7
+        targetSdkVersion 16
+    }
+}
+*/
+
+apply plugin: 'android'
+
+android {
+
+    lintOptions {
+        abortOnError false
+    }
+
+
+    //compileSdkVersion 19
+    compileSdkVersion "Google Inc.:Glass Development Kit Sneak Peek:15"
+    buildToolsVersion "19.0.1"
+
+//    packagingOptions {
+//        exclude 'META-INF/LICENSE.txt'
+//    }
+//
+//    sourceSets {
+//        /*
+//        These add, not replace
+//        main {
+//            java {
+//                srcDir 'main/src/java'
+//            }
+//            resources {
+//                srcDir 'main/src/resources'
+//            }
+//        }*/
+//
+//        instrumentTgest {
+//            java.srcDirs = ['instrumentTest/java']
+//        }
+//    }
+
+//http://tools.android.com/tech-docs/new-build-system/user-guide
+
+
+    repositories {
+        mavenCentral()
+    }
+
+
+    defaultConfig {
+        minSdkVersion 10
+        targetSdkVersion 19
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes {
+        release {
+            runProguard false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
+        }
+    }
+}
+
+dependencies {
+    compile 'com.android.support:support-v4:19.0.0'
+}
