@@ -43,16 +43,33 @@ public class AdbTcpInputHandler {
             process = new ProcessBuilder(new String[]{"adb","-s","127.0.0.1:5555", "shell"}).start();
             out = new BufferedWriter(
                     new OutputStreamWriter(process.getOutputStream()));
+
             try {
-                //Hack to force an easy way to know if we connected or not
-                right();
-            } catch (RuntimeException ex) {
-                //If this happened we didn't connect correctly, so shut down service and update
-                isConnected = false;
-                //FIXME: shut down the service, maybe just send a broadcast saying failure?
-                //LocalBroadcastManager.getInstance().sendBroadcast();
-                throw ex; //FIXME: right now we just crash, since no effort to maintain state was made
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
+
+            try {
+                int exit = process.exitValue();
+                isConnected = false;
+                throw new RuntimeException();
+            } catch (IllegalThreadStateException ex) {
+                //Hack
+                //If we actually connected this should throw an exception so proceed
+                //If we didn't connect, we manuall throw the exception to crash
+            }
+            //FIXME: for some reason the below hack only worked in debug mode :/
+//            try {
+//                //Hack to force an easy way to know if we connected or not
+//                right();
+//            } catch (RuntimeException ex) {
+//                //If this happened we didn't connect correctly, so shut down service and update
+//                isConnected = false;
+//                //FIXME: shut down the service, maybe just send a broadcast saying failure?
+//                //LocalBroadcastManager.getInstance().sendBroadcast();
+//                throw ex; //FIXME: right now we just crash, since no effort to maintain state was made
+//            }
             isConnected = true;
         } catch (IOException e) {
             e.printStackTrace();
