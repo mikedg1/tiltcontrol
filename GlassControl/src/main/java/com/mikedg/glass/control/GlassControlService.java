@@ -55,6 +55,12 @@ public class GlassControlService extends Service {
     }
 
     @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        //FIXME: we will actually want this to restart automatically once we stop using hacks to determine whether we connected or not
+        return Service.START_NOT_STICKY; //When this crashes make sure we don't restart it, so we can actually connect after using our crash hack
+    }
+
+    @Override
     public void onCreate() {
         super.onCreate();
 
@@ -151,16 +157,21 @@ public class GlassControlService extends Service {
         registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
+                L.d("In Tilt Control's receiver");
+
                 if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
                     //Disable sensors no matter what
+                    L.d("The screen just went off, so let's disable listening for sensors");
                     disableSensors();
                 } else if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
                     //Unless we woke up with a wink, we don't want to enable anything
-                }
-                else if (ACTION_WINK.equals(intent.getAction())) {
-                    L.d("WINK");
-                    if (mPowerManager.isScreenOn()) {
+                    L.d("The screen just came on, but we do things off other triggers");
+                } else if (ACTION_WINK.equals(intent.getAction())) {
+                    L.d("We got a wink");
+                    if (mPowerManager.isScreenOn()) { //Could be that this is a race condition? and mTiltControlListening is false
+                        L.d("The screen is on");
                         if (mTiltControlListening) {
+                            L.d("We are listening for controls, so we want to ack and select now");
                             if (SHOULD_SIM_KEYS) {
                                 mInputHandler.select();
                             }
@@ -168,24 +179,31 @@ public class GlassControlService extends Service {
                             abortBroadcast();
                         } else {
                             //Let the standard handler grab the wink
+                            L.d("But we are not listening for controls");
                             return;
                         }
                     } else {
-                        L.d("SCREEN ON");
+                        L.d("The screen isn't on yet, so this week should be turning the screen on");
+                        L.d("Since that's the case, we want to enable the sensors if everything is connected");
                         //If via wink, enable sensors
                         if (mInputHandler.isConnected) {
+                            L.d("Input handler is connected so let's enable sensors and abort the wink broadcast");
                             enableSensors();
                             abortBroadcast();
+                        } else {
+                            L.d("Input handler is not connected");
                         }
                     }
                 }
             }
 
             private void enableSensors() {
-                L.d("Registering sensor listeners");
+                L.d("Trying to register sensor listeners");
                 if (!mTiltControlListening) {
                     mTiltControlListening = true;
                     setupSensors();
+                } else {
+                    L.d("but we are already listening");
                 }
             }
 

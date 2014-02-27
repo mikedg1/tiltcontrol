@@ -43,18 +43,20 @@ public class AdbTcpInputHandler {
             process = new ProcessBuilder(new String[]{"adb","-s","127.0.0.1:5555", "shell"}).start();
             out = new BufferedWriter(
                     new OutputStreamWriter(process.getOutputStream()));
-
+            L.d("Just tried to connect locally");
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-
+            L.d("Just slept for a few seconds, and about to try our hack to see if we actually connected");
             try {
                 int exit = process.exitValue();
+                L.d("Exit value returned, so we are not connected");
                 isConnected = false;
                 throw new RuntimeException();
             } catch (IllegalThreadStateException ex) {
+                L.d("IllegalThreadStateException, which means our hack verified that we are ikely connected");
                 //Hack
                 //If we actually connected this should throw an exception so proceed
                 //If we didn't connect, we manuall throw the exception to crash
@@ -70,6 +72,7 @@ public class AdbTcpInputHandler {
 //                //LocalBroadcastManager.getInstance().sendBroadcast();
 //                throw ex; //FIXME: right now we just crash, since no effort to maintain state was made
 //            }
+            L.d("Setting isConnected = true");
             isConnected = true;
         } catch (IOException e) {
             e.printStackTrace();
