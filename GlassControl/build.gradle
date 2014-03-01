@@ -1,56 +1,25 @@
-/*apply plugin: 'android'
-
-dependencies {
-    compile files('libs/android-support-v4.jar')
-}
-
-android {
-    compileSdkVersion 19
-    buildToolsVersion "19.0.1"
-
-    defaultConfig {
-        minSdkVersion 7
-        targetSdkVersion 16
-    }
-}
-*/
+import java.text.SimpleDateFormat
 
 apply plugin: 'android'
 
-android {
+def versionMajor = 1
 
+def buildTime() {
+    def df = new SimpleDateFormat("yyyy-MM-dd'-'HH:mm")
+    df.setTimeZone(TimeZone.getTimeZone("UTC"))
+    return df.format(new Date())
+}
+
+android {
     lintOptions {
         abortOnError false
     }
-
 
     //compileSdkVersion 19
     compileSdkVersion "Google Inc.:Glass Development Kit Sneak Peek:15"
     buildToolsVersion "19.0.1"
 
-//    packagingOptions {
-//        exclude 'META-INF/LICENSE.txt'
-//    }
-//
-//    sourceSets {
-//        /*
-//        These add, not replace
-//        main {
-//            java {
-//                srcDir 'main/src/java'
-//            }
-//            resources {
-//                srcDir 'main/src/resources'
-//            }
-//        }*/
-//
-//        instrumentTgest {
-//            java.srcDirs = ['instrumentTest/java']
-//        }
-//    }
-
 //http://tools.android.com/tech-docs/new-build-system/user-guide
-
 
     repositories {
         mavenCentral()
@@ -60,9 +29,10 @@ android {
     defaultConfig {
         minSdkVersion 10
         targetSdkVersion 19
+        versionName "${versionMajor}-b-${buildTime()}"
         versionCode 1
-        versionName "1.0"
     }
+
     buildTypes {
         release {
             runProguard false

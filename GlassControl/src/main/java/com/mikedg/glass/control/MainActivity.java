@@ -18,12 +18,40 @@ package com.mikedg.glass.control;
 import android.app.Activity;
 import android.os.Bundle;
 
-public class MainActivity extends Activity {
+public abstract class MainActivity extends Activity {
+    private MainPresentationModel mPresentationModel;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(new TuggableView(this, R.layout.activity_main));
 
-        GlassControlService.launch(this);
+        mPresentationModel = new MainPresentationModel();
+        //FIXME: I'm probably going to forget that this happens
+        GlassControlService.launch(this); //Launch immediately so it helps people with disabilities!
     }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        mPresentationModel.tearDown();
+    }
+
+    protected void onItemSelected(int itemId) {
+        switch (itemId) {
+            case R.string.enable:
+                GlassControlService.launch(this);
+            break;
+            case R.string.disable:
+                GlassControlService.turnOff(this);
+            break;
+        }
+    }
+
+
+    protected MainPresentationModel getPresentationModel() {
+        return mPresentationModel;
+    }
+
+    protected abstract void onCommandsChanged(); //What should happen when the underlying commands available change, basically refresh our views into the model
 }

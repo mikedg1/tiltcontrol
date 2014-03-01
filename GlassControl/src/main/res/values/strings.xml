@@ -3,4 +3,12 @@
     <string name="app_name">Tilt Control</string>
     <string name="action_settings">Settings</string>
     <string name="glass_voice_trigger">tilt control</string>
+
+    <!-- app commands -->
+    <string name="enable">Start</string>
+    <string name="disable">Stop</string>
+    <string name="unknown">UNKNOWN</string>
+
+    <string name="enable_debug_overlay">Enable Overlay</string>
+    <string name="disable_debug_overlay">Disable Overlay</string>
 </resources>

@@ -33,6 +33,10 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.view.Gravity;
 import android.view.WindowManager;
+import com.mikedg.glass.control.inputhandler.AdbTcpInputHandler;
+import com.mikedg.glass.control.inputhandler.InputHandler;
+import com.mikedg.glass.control.inputhandler.OnStateChangedListener;
+import com.mikedg.glass.control.inputhandler.TestVoiceInputHandler;
 
 public class GlassControlService extends Service {
     public static final boolean SHOULD_SIM_KEYS = true;
@@ -40,15 +44,86 @@ public class GlassControlService extends Service {
     public static final boolean SHOULD_SENSOR = true;
 
     public static final String ACTION_WINK = "com.google.glass.action.EYE_GESTURE";
+    public static final String EXTRA_SERVICE_RUNNING_STATUS = "EXTRA_SERVICE_RUNNING_STATUS";
+    private static String ACTION_STATUS_BROADCAST = GlassControlService.class.getName() + ".ACTION_STATUS_BROADCAST";
 
     private Dealer mDealer; //Deals out commands as they come in
     private LevelView mFloatingOverlay;
     private Handler mHandler;
     private Thread looperThread;
     private Handler mainHandler;
-    private AdbTcpInputHandler mInputHandler;
+    private InputHandler mInputHandler;
     private PowerManager mPowerManager;
     private boolean mTiltControlListening;
+    private OnStateChangedListener.State mInputHandlerState = OnStateChangedListener.State.NOT_READY;
+    private BroadcastReceiver mReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                L.d("In Tilt Control's receiver");
+
+                if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
+                    //Disable sensors no matter what
+                    L.d("The screen just went off, so let's disable listening for sensors");
+                    disableSensors();
+                } else if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
+                    //Unless we woke up with a wink, we don't want to enable anything
+                    L.d("The screen just came on, but we do things off other triggers");
+                } else if (ACTION_WINK.equals(intent.getAction())) {
+                    L.d("We got a wink");
+                    if (mInputHandlerState == OnStateChangedListener.State.READY) {
+                        L.d("And our input handler state is ready, so let's check some more things");
+                        if (mPowerManager.isScreenOn()) { //Could be that this is a race condition? and mTiltControlListening is false
+                            L.d("The screen is on");
+                            if (mTiltControlListening) {
+                                L.d("We are listening for controls, so we want to ack and select now");
+                                if (SHOULD_SIM_KEYS) {
+                                    mInputHandler.select();
+                                }
+                                ack(); //Works just harder to hear
+                                abortBroadcast();
+                            } else {
+                                //Let the standard handler grab the wink
+                                L.d("But we are not listening for controls");
+                                return;
+                            }
+                        } else {
+                            L.d("The screen isn't on yet, so this week should be turning the screen on, so let's enable the sensors and abort the wink broadcast");
+                            //L.d("Since that's the case, we want to enable the sensors if everything is connected");
+                            //If via wink, enable sensors
+//                            if (mInputHandler.isConnected) {
+//                                L.d("Input handler is connected so let's enable sensors and abort the wink broadcast");
+                            enableSensors();
+                            abortBroadcast();
+//                            } else {
+//                                L.d("Input handler is not connected");
+//                            }
+                        }
+                    } else {
+                        L.d("But our input handler is not ready:" + mInputHandlerState);
+                    }
+                }
+            }
+
+        private void enableSensors() {
+            L.d("Trying to register sensor listeners");
+            if (!mTiltControlListening) {
+                mTiltControlListening = true;
+                setupSensors();
+            } else {
+                L.d("but we are already listening");
+            }
+        }
+
+        private void disableSensors() {
+            if (mTiltControlListening) {
+                mTiltControlListening = false;
+
+                L.d("Unregistering sensor listeners");
+                mSM = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+                mSM.unregisterListener(mSEL);
+            }
+        }
+    };
 
     public IBinder onBind(Intent intent) {
         return null;
@@ -63,6 +138,8 @@ public class GlassControlService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+
+        broadcastStarted();
 
         mainHandler = new Handler(getMainLooper());
         mPowerManager = (PowerManager)getSystemService(POWER_SERVICE);
@@ -81,9 +158,37 @@ public class GlassControlService extends Service {
         setupReceivers();
     }
 
-    private void setupInputHandler() {
-        mInputHandler = new AdbTcpInputHandler();
+    public void broadcastStarted() {
+        Intent intent = new Intent(ACTION_STATUS_BROADCAST);
+        intent.putExtra(EXTRA_SERVICE_RUNNING_STATUS, true);
+        sendStickyBroadcast(intent);
+    }
 
+    private void setupInputHandler() {
+//        mInputHandler = new TestVoiceInputHandler();
+        mInputHandler = new AdbTcpInputHandler();
+        mInputHandler.setOnStateChangedListener(new OnStateChangedListener() {
+            @Override
+            public void onStateChanged(State state) {
+                switch (state) {
+                    case CATASTROPHIC_FAILURE:
+                        L.d("Uh oh, catastrophic failure, turning off service");
+                        //System.exit(0); //FIXME: for now it's better than crashing right :)
+                        turnOff(GlassControlService.this);
+                        break;
+                    case NOT_READY:
+                        if (mInputHandlerState ==  State.READY) {
+                            L.d("input handler went from READY to NOT_READY, that's only expected when we disable the service");
+                        }
+                        break;
+                    case READY:
+                        L.d("state changed to ready");
+                        break;
+                }
+                mInputHandlerState = state;
+            }
+        });
+        mInputHandler.start();
     }
 
     /*
@@ -154,69 +259,7 @@ public class GlassControlService extends Service {
 
         filter.setPriority(3000); //FIXME: do this more intelligently, we just want to make sure we guarantee our Wink's are received to this app
 
-        registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                L.d("In Tilt Control's receiver");
-
-                if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
-                    //Disable sensors no matter what
-                    L.d("The screen just went off, so let's disable listening for sensors");
-                    disableSensors();
-                } else if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
-                    //Unless we woke up with a wink, we don't want to enable anything
-                    L.d("The screen just came on, but we do things off other triggers");
-                } else if (ACTION_WINK.equals(intent.getAction())) {
-                    L.d("We got a wink");
-                    if (mPowerManager.isScreenOn()) { //Could be that this is a race condition? and mTiltControlListening is false
-                        L.d("The screen is on");
-                        if (mTiltControlListening) {
-                            L.d("We are listening for controls, so we want to ack and select now");
-                            if (SHOULD_SIM_KEYS) {
-                                mInputHandler.select();
-                            }
-                            ack(); //Works just harder to hear
-                            abortBroadcast();
-                        } else {
-                            //Let the standard handler grab the wink
-                            L.d("But we are not listening for controls");
-                            return;
-                        }
-                    } else {
-                        L.d("The screen isn't on yet, so this week should be turning the screen on");
-                        L.d("Since that's the case, we want to enable the sensors if everything is connected");
-                        //If via wink, enable sensors
-                        if (mInputHandler.isConnected) {
-                            L.d("Input handler is connected so let's enable sensors and abort the wink broadcast");
-                            enableSensors();
-                            abortBroadcast();
-                        } else {
-                            L.d("Input handler is not connected");
-                        }
-                    }
-                }
-            }
-
-            private void enableSensors() {
-                L.d("Trying to register sensor listeners");
-                if (!mTiltControlListening) {
-                    mTiltControlListening = true;
-                    setupSensors();
-                } else {
-                    L.d("but we are already listening");
-                }
-            }
-
-            private void disableSensors() {
-                if (mTiltControlListening) {
-                    mTiltControlListening = false;
-
-                    L.d("Unregistering sensor listeners");
-                    mSM = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-                    mSM.unregisterListener(mSEL);
-                }
-            }
-        }, filter);
+        registerReceiver(mReceiver, filter);
     }
 
     public void ack() {
@@ -224,9 +267,41 @@ public class GlassControlService extends Service {
         tg.startTone(ToneGenerator.TONE_PROP_BEEP);
     }
 
+    private static final Intent getServiceIntent(Context context) {
+        return new Intent(context, GlassControlService.class);
+
+    }
+
     public static void launch(Context context) {
-        Intent i = new Intent(context, GlassControlService.class);
-        context.startService(i);
+        context.startService(getServiceIntent(context));
+    }
+
+    public static void turnOff(Context context) {
+        context.stopService(getServiceIntent(context));
+    }
+
+    @Override
+    public void onDestroy() {
+        broadcastStopped();
+        mInputHandler.stop();
+        unregisterReceiver(mReceiver);
+        super.onDestroy();
+    }
+
+    public void broadcastStopped() {
+        Intent intent = new Intent(ACTION_STATUS_BROADCAST);
+        intent.putExtra(EXTRA_SERVICE_RUNNING_STATUS, false);
+        sendStickyBroadcast(intent); //FIXME: should not be static and should be using this context
+    }
+
+    private static IntentFilter sServiceStatusIntent = null;
+
+    public static IntentFilter getServiceStatusReceiverIntent() {
+        if (sServiceStatusIntent == null) {
+            sServiceStatusIntent = new IntentFilter();
+            sServiceStatusIntent.addAction(ACTION_STATUS_BROADCAST);
+        }
+        return sServiceStatusIntent;
     }
 
     private class mSensorEventListener implements SensorEventListener {

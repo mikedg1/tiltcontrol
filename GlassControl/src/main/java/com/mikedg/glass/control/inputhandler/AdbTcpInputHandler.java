@@ -13,10 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package com.mikedg.glass.control;
+package com.mikedg.glass.control.inputhandler;
 
 import android.util.Log;
 import android.view.KeyEvent;
+import com.mikedg.glass.control.L;
+import com.mikedg.glass.control.inputhandler.BaseInputHandler;
+import com.mikedg.glass.control.inputhandler.OnStateChangedListener;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -25,78 +28,95 @@ import java.io.OutputStreamWriter;
 /**
  * Created by mdigiovanni on 10/24/13.
  */
-//FIXME: pull out to an interface
 //Other implementations could be an implementation that requires root
 //A system signed API level implementation
-public class AdbTcpInputHandler {
+public class AdbTcpInputHandler extends BaseInputHandler {
     private Process process;
     private BufferedWriter out;
-
-    public static boolean isConnected = false; //Hacky thing to let us quickly check, just for UX purposes
+    private Thread mLocalConnectionThread;
 
     public AdbTcpInputHandler() {
+        L.d("Created AdbTcpInputHandler");
+        onStateChanged(OnStateChangedListener.State.NOT_READY);
+    }
+
+    public void start() {
+        L.d("Starting AdbTcpInputHandler");
         tryConnectingLocally();
+    }
+
+    public void stop() {
+        onStateChanged(OnStateChangedListener.State.NOT_READY);
+        if (process != null) {
+            process.destroy();
+        }
+        if (out != null) {
+            try {
+                out.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void tryOpeningAdb() {
         try {
+            L.d("Trying to open the shell locally");
             process = new ProcessBuilder(new String[]{"adb","-s","127.0.0.1:5555", "shell"}).start();
             out = new BufferedWriter(
                     new OutputStreamWriter(process.getOutputStream()));
-            L.d("Just tried to connect locally");
+            L.d("Just tried to open shell locally");
             try {
                 Thread.sleep(2000);
             } catch (InterruptedException e) {
+                L.d("Got a thread interrupted exception");
                 e.printStackTrace();
             }
             L.d("Just slept for a few seconds, and about to try our hack to see if we actually connected");
             try {
                 int exit = process.exitValue();
                 L.d("Exit value returned, so we are not connected");
-                isConnected = false;
-                throw new RuntimeException();
+                onStateChanged(OnStateChangedListener.State.CATASTROPHIC_FAILURE);
+                return;
             } catch (IllegalThreadStateException ex) {
                 L.d("IllegalThreadStateException, which means our hack verified that we are ikely connected");
                 //Hack
                 //If we actually connected this should throw an exception so proceed
                 //If we didn't connect, we manuall throw the exception to crash
             }
-            //FIXME: for some reason the below hack only worked in debug mode :/
-//            try {
-//                //Hack to force an easy way to know if we connected or not
-//                right();
-//            } catch (RuntimeException ex) {
-//                //If this happened we didn't connect correctly, so shut down service and update
-//                isConnected = false;
-//                //FIXME: shut down the service, maybe just send a broadcast saying failure?
-//                //LocalBroadcastManager.getInstance().sendBroadcast();
-//                throw ex; //FIXME: right now we just crash, since no effort to maintain state was made
-//            }
             L.d("Setting isConnected = true");
-            isConnected = true;
+            onStateChanged(OnStateChangedListener.State.READY);
         } catch (IOException e) {
             e.printStackTrace();
-            throw new RuntimeException("Failed initial hack to check if we are actually connected to local ADB via TCP"); //FIXME: handle gracefully
+            onStateChanged(OnStateChangedListener.State.CATASTROPHIC_FAILURE);
+            return;
         }
     }
 
     private void tryConnectingLocally() {
-     Thread t = new Thread() {
+        mLocalConnectionThread = new Thread() {
             public void run() {
+                L.d("Trying to connect locally");
                 try {
-                    process = new ProcessBuilder(new String[]{"adb","connect", "127.0.0.1"}).start();
+                    ProcessBuilder builder = new ProcessBuilder(new String[]{"adb","connect", "127.0.0.1"});
+                    builder.redirectErrorStream(true);
+                    process = builder.start();
+
                     int exitValue = process.waitFor(); //Wait for this to finish, should be nearly instant
-                    Log.d("test", "exitval:" + exitValue); // on success it's 0, on a failure, it's 0 too :(
+                    L.d("exitval:" + exitValue); // on success it's 0, on a failure, it's 0 too :(
                 } catch (IOException e) {
                     e.printStackTrace();
-                    throw new RuntimeException(e); //FIXME: handle gracefully
+                    onStateChanged(OnStateChangedListener.State.CATASTROPHIC_FAILURE);
+                    return;
                 } catch (InterruptedException e) {
                     e.printStackTrace();
+                    onStateChanged(OnStateChangedListener.State.CATASTROPHIC_FAILURE); //FIXME: re-evaluate this to make sure this is a fail condition
+                    return;
                 }
                 tryOpeningAdb();
             }
         };
-      t.start();
+        mLocalConnectionThread.start();
     }
 
     public void select() {
