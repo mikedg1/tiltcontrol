@@ -18,6 +18,7 @@ package com.mikedg.glass.control.inputhandler;
 import android.util.Log;
 import android.view.KeyEvent;
 import com.mikedg.glass.control.L;
+import com.mikedg.glass.control.ProcessUtility;
 import com.mikedg.glass.control.inputhandler.BaseInputHandler;
 import com.mikedg.glass.control.inputhandler.OnStateChangedListener;
 
@@ -93,22 +94,40 @@ public class AdbTcpInputHandler extends BaseInputHandler {
         }
     }
 
+    private enum ConnectionStatus {
+        ALREADY_CONNECTED, CONNECTED, UNKNOWN
+    }
+
     private void tryConnectingLocally() {
         mLocalConnectionThread = new Thread() {
             public void run() {
                 L.d("Trying to connect locally");
                 try {
-                    ProcessBuilder builder = new ProcessBuilder(new String[]{"adb","connect", "127.0.0.1"});
-                    builder.redirectErrorStream(true);
-                    process = builder.start();
-
-                    int exitValue = process.waitFor(); //Wait for this to finish, should be nearly instant
-                    L.d("exitval:" + exitValue); // on success it's 0, on a failure, it's 0 too :(
+                    ConnectionStatus status = ProcessUtility.executeProcess(new String[]{"adb","connect", "127.0.0.1"}, new ProcessUtility.OutputHandler<ConnectionStatus>() {
+                        @Override
+                        public ConnectionStatus onProcessStreamsFinished(String stdout, String stderr, int evitValue) {
+                            //New connection
+//                            03-02 08:20:38.581  22624-22643/com.mikedg.glass.control D/GLASSCONTROL﹕ output from stdout: connected to 127.0.0.1:5555
+                            if (stdout.contains("connected to 127.0.0.1:5555")) {
+                                return ConnectionStatus.CONNECTED;
+                            } else if (stdout.contains("already connected to 127.0.0.1:5555")) {
+                                return ConnectionStatus.ALREADY_CONNECTED;
+                            }
+                            return ConnectionStatus.UNKNOWN;
+                        }
+                    }); //Wait for this to finish, should be nearly instant
+                    L.d("conneciotn status:" + status); // on success it's 0, on a failure, it's 0 too :(
+                    if (status == ConnectionStatus.UNKNOWN) {
+                        onStateChanged(OnStateChangedListener.State.CATASTROPHIC_FAILURE);
+                        return;
+                    }
                 } catch (IOException e) {
+                    L.d("io exception while trying to wait");
                     e.printStackTrace();
                     onStateChanged(OnStateChangedListener.State.CATASTROPHIC_FAILURE);
                     return;
                 } catch (InterruptedException e) {
+                    L.d("interruped exception while trying to wait");
                     e.printStackTrace();
                     onStateChanged(OnStateChangedListener.State.CATASTROPHIC_FAILURE); //FIXME: re-evaluate this to make sure this is a fail condition
                     return;
