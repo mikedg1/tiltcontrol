@@ -146,7 +146,6 @@ public class GlassControlService extends Service {
         if (SHOULD_SIM_KEYS) {
             setupInputHandler();
         }
-        setupDealer();
         if (SHOULD_SENSOR) {
             //setupSensors(); //FIXME: removed so we don't initially tell the sensors to start sensing when we run it for the first time
         }
@@ -165,8 +164,8 @@ public class GlassControlService extends Service {
     }
 
     private void setupInputHandler() {
-//        mInputHandler = new TestVoiceInputHandler();
-        mInputHandler = new AdbTcpInputHandler();
+        mInputHandler = new TestVoiceInputHandler();
+//        mInputHandler = new AdbTcpInputHandler();
         mInputHandler.setOnStateChangedListener(new OnStateChangedListener() {
             @Override
             public void onStateChanged(State state) {
@@ -212,8 +211,8 @@ public class GlassControlService extends Service {
         windowManager.addView(mFloatingOverlay, params);
     }
 
-    private void setupDealer() {
-        mDealer = new Dealer(0,0); //FIXME: should pick something based off when we start, but for now this is fine
+    private void setupDealer( float[] pitchRoll) {
+        mDealer = new Dealer(pitchRoll[0], pitchRoll[1]); //FIXME: should pick something based off when we start, but for now this is fine
     }
 
     private SensorManager mSM;
@@ -315,6 +314,11 @@ public class GlassControlService extends Service {
         final float pi = (float) Math.PI;
         final float rad2deg = 180 / pi;
 
+        final float[] pitchRoll = new float[2];
+
+        private boolean setupDealer; //Did we actually create a new dealer and set it after getting the right amount of samples
+        private int allSensorFlag = 0;
+
         @Override
         public void onAccuracyChanged(Sensor arg0, int arg1) {
         }
@@ -362,20 +366,43 @@ public class GlassControlService extends Service {
                 //FIXME: looks like we never get gravity?
                 boolean success = SensorManager.getRotationMatrix(inR, I, gravity, geomag);
                 if (success) { //FIXME: BAD BAD
-                    // Re-map coordinates so y-axis comes out of camera
-                    SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_X,
-                            SensorManager.AXIS_Z, outR);
-
-                    SensorManager.getOrientation(outR, orientVals);
-                    //float azimuth = orientVals[0] * rad2deg;
-                    float pitch = orientVals[1] * rad2deg;
-                    float roll = orientVals[2] * rad2deg;
-
-                    mDealer.handleStuff(pitch, roll);
+                    if(setupDealer) {
+                        getPitchRoll(pitchRoll);
+                        mDealer.handleStuff(pitchRoll[0], pitchRoll[1]);
+                    } else if (!setupDealer) {
+                        switch (event.sensor.getType()) {
+                            case Sensor.TYPE_GRAVITY:
+                                allSensorFlag |= 0xF00;
+                                break;
+                            case Sensor.TYPE_MAGNETIC_FIELD:
+                                allSensorFlag |= 0x0F0;
+                                break;
+                            case  Sensor.TYPE_ACCELEROMETER:
+                                allSensorFlag |= 0x00F;
+                                break;
+                        }
+                        if (allSensorFlag == 0xFFF) {
+                            getPitchRoll(pitchRoll);
+                            L.d("Got enough data to setup our start zone for gestures: pitch:" + pitchRoll[0] + " roll:" + pitchRoll[1]);
+                            setupDealer(pitchRoll);
+                            setupDealer = true;
+                        }
+                    }
                 }
+
             }
         }
 
+        private void getPitchRoll(float[] pitchRoll) {
+            // Re-map coordinates so y-axis comes out of camera
+            SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_X,
+                    SensorManager.AXIS_Z, outR);
+
+            SensorManager.getOrientation(outR, orientVals);
+            //float azimuth = orientVals[0] * rad2deg;
+            pitchRoll[0] = orientVals[1] * rad2deg;
+            pitchRoll[1] = orientVals[2] * rad2deg;
+        }
     }
 
 
@@ -407,8 +434,8 @@ public class GlassControlService extends Service {
         float lastCount = 0;
 
         public AxisDetails(float neutralHigh, float neutralLow, float variance, float base, Trigger lowTrigger, Trigger highTrigger, float hysterisisLow, float hysterisisHigh) {
-            this.neutralHigh = neutralHigh;
-            this.neutralLow = neutralLow;
+            this.neutralHigh = neutralHigh + base;
+            this.neutralLow = neutralLow + base;
             this.hysterisisLow = hysterisisLow;
             this.hysterisisHigh = hysterisisHigh;
             this.variance = variance;
