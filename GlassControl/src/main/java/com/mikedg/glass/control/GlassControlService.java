@@ -124,6 +124,7 @@ public class GlassControlService extends Service {
             }
         }
     };
+    private ToneGenerator mToneGenerator;
 
     public IBinder onBind(Intent intent) {
         return null;
@@ -138,6 +139,7 @@ public class GlassControlService extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
+        mToneGenerator = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
 
         broadcastStarted();
 
@@ -263,8 +265,7 @@ public class GlassControlService extends Service {
     }
 
     public void ack() {
-        final ToneGenerator tg = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
-        tg.startTone(ToneGenerator.TONE_PROP_BEEP);
+        mToneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP);
     }
 
     private static final Intent getServiceIntent(Context context) {
@@ -285,6 +286,8 @@ public class GlassControlService extends Service {
         broadcastStopped();
         mInputHandler.stop();
         unregisterReceiver(mReceiver);
+        mToneGenerator.release();
+
         super.onDestroy();
     }
 
