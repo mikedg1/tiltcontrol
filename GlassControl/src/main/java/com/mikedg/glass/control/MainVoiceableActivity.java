@@ -36,6 +36,11 @@ public class MainVoiceableActivity extends MainActivity {
         displaySpeechRecognizer();
     }
 
+    @Override
+    protected void changeStartTiltSetting() {
+        throw new RuntimeException("Not implemented, shame on you");
+    }
+
     private void createCommandMapping() {
         mCommandMap = new HashMap<String, Integer>();
         addToMap(R.string.disable);

@@ -20,21 +20,21 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.text.format.Formatter;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
+import android.view.*;
 import android.widget.AdapterView;
 import android.widget.TextView;
+import com.google.android.glass.view.MenuUtils;
 import com.google.android.glass.widget.CardScrollAdapter;
 import com.google.android.glass.widget.CardScrollView;
 
 import java.util.ArrayList;
 
-public class MainTouchableActivity extends MainActivity implements MainPresentationModel.OnCommandsChangedListener {
+public class MainTouchableActivity extends MainActivity implements MainPresentationModel.OnModelChangedListener {
     private ArrayList<View> mCards;
     private View enablerCard;
     private View statusCard;
     private CardScrollView mCardScrollView;
+    private View tiltStartSettingCard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,10 +49,54 @@ public class MainTouchableActivity extends MainActivity implements MainPresentat
         //GlassControlService.launch(this);
     }
 
+    Menu mMenu;
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        switch (item.getItemId()) {
+            case R.id.action_settings_start_tilt_off:
+                Prefs.getInstance().setTiltStartEnabled(false);
+                onCommandsChanged();
+                return true;
+            case R.id.action_settings_start_tilt_on:
+                Prefs.getInstance().setTiltStartEnabled(true);
+                onCommandsChanged();
+                return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void changeStartTiltSetting() {
+        openOptionsMenu();
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        mMenu.clear();
+        //This is such a silly, lazy process
+        getMenuInflater().inflate(R.menu.start_tilt_options, mMenu);
+
+        MenuItem selectedItem = menu.findItem(Prefs.getInstance().getTiltStartEnabled() ? R.id.action_settings_start_tilt_off: R.id.action_settings_start_tilt_on);
+        MenuUtils.setInitialMenuItem(menu, selectedItem);
+        return true;
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        mMenu = menu;
+        return super.onCreateOptionsMenu(menu);
+    }
+
     @Override
     public void onCommandsChanged() {
         enablerCard.setTag(getPresentationModel().getEnablerCommand());
         ((TextView) enablerCard.findViewById(R.id.textView1)).setText(getString(getPresentationModel().getEnablerCommand()));
+    }
+
+    @Override
+    public void onPrefsChanged() {
+        populateTiltStartSettingValue();
     }
 
     private void createScrollView() {
@@ -81,6 +125,7 @@ public class MainTouchableActivity extends MainActivity implements MainPresentat
 //        statusCard = card;
 //        statusCard.setTag(-1);
 
+        //Setup the title card
         card = inflater.inflate(R.layout.card_title, null);
         ((TextView) card.findViewById(R.id.textView_ip)).setText(getIpAddress());
         try {
@@ -91,10 +136,19 @@ public class MainTouchableActivity extends MainActivity implements MainPresentat
             ((TextView) card.findViewById(R.id.textView_version)).setText("unknown");
             e.printStackTrace();
         }
-
         mCards.add(card);
         enablerCard = card;
-        enablerCard.setTag(-1);
+
+        //Setup the card to change your settings for
+        card = inflater.inflate(R.layout.card_start_tilt_setting, null);
+        mCards.add(card);
+        tiltStartSettingCard = card;
+        tiltStartSettingCard.setTag(R.layout.card_start_tilt_setting); //Always this, doesn't change, or should it?
+        populateTiltStartSettingValue();
+    }
+
+    private void populateTiltStartSettingValue() {
+        ((TextView) tiltStartSettingCard.findViewById(R.id.textView_setting_title_value)).setText(getPresentationModel().getTiltStartSettingText());
     }
 
     private class MainCardScrollAdapter extends CardScrollAdapter {

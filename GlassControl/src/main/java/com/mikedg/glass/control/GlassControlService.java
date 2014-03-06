@@ -125,6 +125,14 @@ public class GlassControlService extends Service {
         }
     };
 
+    private boolean mTiltStartEnabled = false;
+    private BroadcastReceiver mPrefsBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            mTiltStartEnabled = Prefs.getInstance().getTiltStartEnabled();
+        }
+    };
+
     public IBinder onBind(Intent intent) {
         return null;
     }
@@ -140,6 +148,7 @@ public class GlassControlService extends Service {
         super.onCreate();
 
         broadcastStarted();
+        mTiltStartEnabled = Prefs.getInstance().getTiltStartEnabled();
 
         mainHandler = new Handler(getMainLooper());
         mPowerManager = (PowerManager)getSystemService(POWER_SERVICE);
@@ -212,7 +221,12 @@ public class GlassControlService extends Service {
     }
 
     private void setupDealer( float[] pitchRoll) {
-        mDealer = new Dealer(pitchRoll[0], pitchRoll[1]); //FIXME: should pick something based off when we start, but for now this is fine
+        //FIXME: if we check this here, we miss a few samples, but I guess this keeps both paths very similar
+        if (mTiltStartEnabled) {
+            mDealer = new Dealer(pitchRoll[0], pitchRoll[1]); //FIXME: should pick something based off when we start, but for now this is fine
+        } else {
+            mDealer = new Dealer(0, 0); //FIXME: should pick something based off when we start, but for now this is fine
+        }
     }
 
     private SensorManager mSM;
@@ -259,6 +273,8 @@ public class GlassControlService extends Service {
         filter.setPriority(3000); //FIXME: do this more intelligently, we just want to make sure we guarantee our Wink's are received to this app
 
         registerReceiver(mReceiver, filter);
+
+        registerReceiver(mPrefsBroadcastReceiver, Prefs.getPrefsChangedReceiverIntent());
     }
 
     public void ack() {
@@ -284,6 +300,7 @@ public class GlassControlService extends Service {
         broadcastStopped();
         mInputHandler.stop();
         unregisterReceiver(mReceiver);
+        unregisterReceiver(mPrefsBroadcastReceiver);
         super.onDestroy();
     }
 

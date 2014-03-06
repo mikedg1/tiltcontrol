@@ -19,10 +19,19 @@ public class MainPresentationModel {
         }
     };
 
-    private OnCommandsChangedListener mOnCommandsChangedListener = null;
+    private BroadcastReceiver mPrefsBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            handlePrefsBroadcast(intent);
+        }
+    };
+
+    private OnModelChangedListener mOnModelChangedListener = null;
 
     public MainPresentationModel() {
         context = TiltControlApplication.getContext();
+
+        context.registerReceiver(mPrefsBroadcastReceiver, Prefs.getPrefsChangedReceiverIntent());
 
         Intent sticky = context.registerReceiver(mBroadcastReceiver, GlassControlService.getServiceStatusReceiverIntent());
         handleStatusbroadcast(sticky);
@@ -33,17 +42,27 @@ public class MainPresentationModel {
             //FIXME: we don't care if anything changed, but thats probably smart, right?
             mServiceRunning = intent.getBooleanExtra(GlassControlService.EXTRA_SERVICE_RUNNING_STATUS, false);
 
-            if (mOnCommandsChangedListener != null) {
-                mOnCommandsChangedListener.onCommandsChanged();
+            if (mOnModelChangedListener != null) {
+                mOnModelChangedListener.onCommandsChanged();
+            }
+        }
+    }
+
+    private void handlePrefsBroadcast(Intent intent) {
+        if (intent != null) {
+            //FIXME: we don't care if anything changed, but thats probably smart, right?
+            if (mOnModelChangedListener != null) {
+                mOnModelChangedListener.onPrefsChanged();
             }
         }
     }
 
     public void tearDown() {
         //remove listeners
-        mOnCommandsChangedListener = null;
+        mOnModelChangedListener = null;
         //remove receivers
         context.unregisterReceiver(mBroadcastReceiver);
+        context.unregisterReceiver(mPrefsBroadcastReceiver);
     }
 
     public int getEnablerCommand() {
@@ -53,12 +72,21 @@ public class MainPresentationModel {
     //Get screen timeout
     //get Set always on command
 
-    public void setOnCommandsChangedListener(OnCommandsChangedListener onCommandsChangedListener) {
-        mOnCommandsChangedListener = onCommandsChangedListener;
-        mOnCommandsChangedListener.onCommandsChanged();
+    public void setOnCommandsChangedListener(OnModelChangedListener onModelChangedListener) {
+        mOnModelChangedListener = onModelChangedListener;
+        mOnModelChangedListener.onCommandsChanged();
     }
 
-    public static interface OnCommandsChangedListener {
+    public int getTiltStartSettingText() {
+        if (Prefs.getInstance().getTiltStartEnabled()) {
+            return R.string.setting_tilt_start_on_text;
+        } else {
+            return R.string.setting_tilt_start_off_text;
+        }
+    }
+
+    public static interface OnModelChangedListener {
         public void onCommandsChanged();
+        public void onPrefsChanged();
     }
 }
