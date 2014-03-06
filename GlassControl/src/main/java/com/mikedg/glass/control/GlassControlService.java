@@ -33,7 +33,6 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.view.Gravity;
 import android.view.WindowManager;
-import com.mikedg.glass.control.inputhandler.AdbTcpInputHandler;
 import com.mikedg.glass.control.inputhandler.InputHandler;
 import com.mikedg.glass.control.inputhandler.OnStateChangedListener;
 import com.mikedg.glass.control.inputhandler.TestVoiceInputHandler;
@@ -119,8 +118,8 @@ public class GlassControlService extends Service {
                 mTiltControlListening = false;
 
                 L.d("Unregistering sensor listeners");
-                mSM = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-                mSM.unregisterListener(mSEL);
+                mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+                mSensorManager.unregisterListener(mSensorEventListener);
             }
         }
     };
@@ -130,6 +129,7 @@ public class GlassControlService extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             mTiltStartEnabled = Prefs.getInstance().getTiltStartEnabled();
+            mSensorEventListener.reset();
         }
     };
 
@@ -229,12 +229,12 @@ public class GlassControlService extends Service {
         }
     }
 
-    private SensorManager mSM;
-    private mSensorEventListener mSEL;
+    private SensorManager mSensorManager;
+    private ControlSensorEventListener mSensorEventListener;
 
     private void setupSensors() {
-        mSM = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        mSEL = new mSensorEventListener();
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        mSensorEventListener = new ControlSensorEventListener();
 
         looperThread = new Thread() {
             public void run() {
@@ -242,22 +242,22 @@ public class GlassControlService extends Service {
                 mHandler = new Handler();
                 //Added gravity in to support the level, should be able to use this for the accelerometer though, no?
                 //Proobably can remove this when level is gone
-                mSM.registerListener(mSEL, mSM.getDefaultSensor(Sensor.TYPE_GRAVITY),
+                mSensorManager.registerListener(mSensorEventListener, mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY),
                         SensorManager.SENSOR_DELAY_NORMAL, mHandler);
 
-                mSM.registerListener(mSEL,
-                        mSM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+                mSensorManager.registerListener(mSensorEventListener,
+                        mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
                         SensorManager.SENSOR_DELAY_NORMAL, mHandler);
 
                 //Added gyro below
-                mSM.registerListener(mSEL,
-                        mSM.getDefaultSensor(Sensor.TYPE_GYROSCOPE),
+                mSensorManager.registerListener(mSensorEventListener,
+                        mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE),
                         SensorManager.SENSOR_DELAY_NORMAL, mHandler);
 
                 //FIXME: tried adding magnetic field back to see if t afffects not getting stuff, getrotationmatrix
                 //FIXME: I think the below might be necessary, not sure, try removing it and see if we never can get rotaiton matrix again
-                mSM.registerListener(mSEL,
-                        mSM.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
+                mSensorManager.registerListener(mSensorEventListener,
+                        mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
                         SensorManager.SENSOR_DELAY_NORMAL, mHandler);
                 Looper.loop();
             }
@@ -320,7 +320,7 @@ public class GlassControlService extends Service {
         return sServiceStatusIntent;
     }
 
-    private class mSensorEventListener implements SensorEventListener {
+    private class ControlSensorEventListener implements SensorEventListener {
         float[] inR = new float[16];
         float[] outR = new float[16];
         float[] I = new float[16];
@@ -333,8 +333,13 @@ public class GlassControlService extends Service {
 
         final float[] pitchRoll = new float[2];
 
-        private boolean setupDealer; //Did we actually create a new dealer and set it after getting the right amount of samples
+        private boolean dealerIsSetup; //Did we actually create a new dealer and set it after getting the right amount of samples
         private int allSensorFlag = 0;
+
+        public void reset() {
+            allSensorFlag = 0;
+            dealerIsSetup = false;
+        }
 
         @Override
         public void onAccuracyChanged(Sensor arg0, int arg1) {
@@ -383,10 +388,10 @@ public class GlassControlService extends Service {
                 //FIXME: looks like we never get gravity?
                 boolean success = SensorManager.getRotationMatrix(inR, I, gravity, geomag);
                 if (success) { //FIXME: BAD BAD
-                    if(setupDealer) {
+                    if(dealerIsSetup) {
                         getPitchRoll(pitchRoll);
                         mDealer.handleStuff(pitchRoll[0], pitchRoll[1]);
-                    } else if (!setupDealer) {
+                    } else if (!dealerIsSetup) {
                         switch (event.sensor.getType()) {
                             case Sensor.TYPE_GRAVITY:
                                 allSensorFlag |= 0xF00;
@@ -402,7 +407,7 @@ public class GlassControlService extends Service {
                             getPitchRoll(pitchRoll);
                             L.d("Got enough data to setup our start zone for gestures: pitch:" + pitchRoll[0] + " roll:" + pitchRoll[1]);
                             setupDealer(pitchRoll);
-                            setupDealer = true;
+                            dealerIsSetup = true;
                         }
                     }
                 }
