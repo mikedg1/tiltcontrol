@@ -119,12 +119,21 @@ public class GlassControlService extends Service {
                 mTiltControlListening = false;
 
                 L.d("Unregistering sensor listeners");
-                mSM = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-                mSM.unregisterListener(mSEL);
+                mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+                mSensorManager.unregisterListener(mSensorEventListener);
             }
         }
     };
     private ToneGenerator mToneGenerator;
+
+    private boolean mTiltStartEnabled = false;
+    private BroadcastReceiver mPrefsBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            mTiltStartEnabled = Prefs.getInstance().getTiltStartEnabled();
+            mSensorEventListener.reset();
+        }
+    };
 
     public IBinder onBind(Intent intent) {
         return null;
@@ -142,13 +151,13 @@ public class GlassControlService extends Service {
         mToneGenerator = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
 
         broadcastStarted();
+        mTiltStartEnabled = Prefs.getInstance().getTiltStartEnabled();
 
         mainHandler = new Handler(getMainLooper());
         mPowerManager = (PowerManager)getSystemService(POWER_SERVICE);
         if (SHOULD_SIM_KEYS) {
             setupInputHandler();
         }
-        setupDealer();
         if (SHOULD_SENSOR) {
             //setupSensors(); //FIXME: removed so we don't initially tell the sensors to start sensing when we run it for the first time
         }
@@ -214,16 +223,21 @@ public class GlassControlService extends Service {
         windowManager.addView(mFloatingOverlay, params);
     }
 
-    private void setupDealer() {
-        mDealer = new Dealer(0,0); //FIXME: should pick something based off when we start, but for now this is fine
+    private void setupDealer( float[] pitchRoll) {
+        //FIXME: if we check this here, we miss a few samples, but I guess this keeps both paths very similar
+        if (mTiltStartEnabled) {
+            mDealer = new Dealer(pitchRoll[0], pitchRoll[1]); //FIXME: should pick something based off when we start, but for now this is fine
+        } else {
+            mDealer = new Dealer(0, 0); //FIXME: should pick something based off when we start, but for now this is fine
+        }
     }
 
-    private SensorManager mSM;
-    private mSensorEventListener mSEL;
+    private SensorManager mSensorManager;
+    private ControlSensorEventListener mSensorEventListener;
 
     private void setupSensors() {
-        mSM = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        mSEL = new mSensorEventListener();
+        mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+        mSensorEventListener = new ControlSensorEventListener();
 
         looperThread = new Thread() {
             public void run() {
@@ -231,22 +245,22 @@ public class GlassControlService extends Service {
                 mHandler = new Handler();
                 //Added gravity in to support the level, should be able to use this for the accelerometer though, no?
                 //Proobably can remove this when level is gone
-                mSM.registerListener(mSEL, mSM.getDefaultSensor(Sensor.TYPE_GRAVITY),
+                mSensorManager.registerListener(mSensorEventListener, mSensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY),
                         SensorManager.SENSOR_DELAY_NORMAL, mHandler);
 
-                mSM.registerListener(mSEL,
-                        mSM.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
+                mSensorManager.registerListener(mSensorEventListener,
+                        mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),
                         SensorManager.SENSOR_DELAY_NORMAL, mHandler);
 
                 //Added gyro below
-                mSM.registerListener(mSEL,
-                        mSM.getDefaultSensor(Sensor.TYPE_GYROSCOPE),
+                mSensorManager.registerListener(mSensorEventListener,
+                        mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE),
                         SensorManager.SENSOR_DELAY_NORMAL, mHandler);
 
                 //FIXME: tried adding magnetic field back to see if t afffects not getting stuff, getrotationmatrix
                 //FIXME: I think the below might be necessary, not sure, try removing it and see if we never can get rotaiton matrix again
-                mSM.registerListener(mSEL,
-                        mSM.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
+                mSensorManager.registerListener(mSensorEventListener,
+                        mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD),
                         SensorManager.SENSOR_DELAY_NORMAL, mHandler);
                 Looper.loop();
             }
@@ -262,6 +276,8 @@ public class GlassControlService extends Service {
         filter.setPriority(3000); //FIXME: do this more intelligently, we just want to make sure we guarantee our Wink's are received to this app
 
         registerReceiver(mReceiver, filter);
+
+        registerReceiver(mPrefsBroadcastReceiver, Prefs.getPrefsChangedReceiverIntent());
     }
 
     public void ack() {
@@ -286,6 +302,8 @@ public class GlassControlService extends Service {
         broadcastStopped();
         mInputHandler.stop();
         unregisterReceiver(mReceiver);
+        unregisterReceiver(mPrefsBroadcastReceiver);
+
         mToneGenerator.release();
 
         super.onDestroy();
@@ -307,7 +325,7 @@ public class GlassControlService extends Service {
         return sServiceStatusIntent;
     }
 
-    private class mSensorEventListener implements SensorEventListener {
+    private class ControlSensorEventListener implements SensorEventListener {
         float[] inR = new float[16];
         float[] outR = new float[16];
         float[] I = new float[16];
@@ -317,6 +335,16 @@ public class GlassControlService extends Service {
 
         final float pi = (float) Math.PI;
         final float rad2deg = 180 / pi;
+
+        final float[] pitchRoll = new float[2];
+
+        private boolean dealerIsSetup; //Did we actually create a new dealer and set it after getting the right amount of samples
+        private int allSensorFlag = 0;
+
+        public void reset() {
+            allSensorFlag = 0;
+            dealerIsSetup = false;
+        }
 
         @Override
         public void onAccuracyChanged(Sensor arg0, int arg1) {
@@ -365,20 +393,43 @@ public class GlassControlService extends Service {
                 //FIXME: looks like we never get gravity?
                 boolean success = SensorManager.getRotationMatrix(inR, I, gravity, geomag);
                 if (success) { //FIXME: BAD BAD
-                    // Re-map coordinates so y-axis comes out of camera
-                    SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_X,
-                            SensorManager.AXIS_Z, outR);
-
-                    SensorManager.getOrientation(outR, orientVals);
-                    //float azimuth = orientVals[0] * rad2deg;
-                    float pitch = orientVals[1] * rad2deg;
-                    float roll = orientVals[2] * rad2deg;
-
-                    mDealer.handleStuff(pitch, roll);
+                    if(dealerIsSetup) {
+                        getPitchRoll(pitchRoll);
+                        mDealer.handleStuff(pitchRoll[0], pitchRoll[1]);
+                    } else if (!dealerIsSetup) {
+                        switch (event.sensor.getType()) {
+                            case Sensor.TYPE_GRAVITY:
+                                allSensorFlag |= 0xF00;
+                                break;
+                            case Sensor.TYPE_MAGNETIC_FIELD:
+                                allSensorFlag |= 0x0F0;
+                                break;
+                            case  Sensor.TYPE_ACCELEROMETER:
+                                allSensorFlag |= 0x00F;
+                                break;
+                        }
+                        if (allSensorFlag == 0xFFF) {
+                            getPitchRoll(pitchRoll);
+                            L.d("Got enough data to setup our start zone for gestures: pitch:" + pitchRoll[0] + " roll:" + pitchRoll[1]);
+                            setupDealer(pitchRoll);
+                            dealerIsSetup = true;
+                        }
+                    }
                 }
+
             }
         }
 
+        private void getPitchRoll(float[] pitchRoll) {
+            // Re-map coordinates so y-axis comes out of camera
+            SensorManager.remapCoordinateSystem(inR, SensorManager.AXIS_X,
+                    SensorManager.AXIS_Z, outR);
+
+            SensorManager.getOrientation(outR, orientVals);
+            //float azimuth = orientVals[0] * rad2deg;
+            pitchRoll[0] = orientVals[1] * rad2deg;
+            pitchRoll[1] = orientVals[2] * rad2deg;
+        }
     }
 
 
@@ -410,8 +461,8 @@ public class GlassControlService extends Service {
         float lastCount = 0;
 
         public AxisDetails(float neutralHigh, float neutralLow, float variance, float base, Trigger lowTrigger, Trigger highTrigger, float hysterisisLow, float hysterisisHigh) {
-            this.neutralHigh = neutralHigh;
-            this.neutralLow = neutralLow;
+            this.neutralHigh = neutralHigh + base;
+            this.neutralLow = neutralLow + base;
             this.hysterisisLow = hysterisisLow;
             this.hysterisisHigh = hysterisisHigh;
             this.variance = variance;

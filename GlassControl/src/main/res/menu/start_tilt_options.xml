@@ -1,0 +1,10 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+            android:id="@+id/action_settings_start_tilt_on"
+            android:title="@string/setting_tilt_start_on_text"
+            />
+    <item
+            android:id="@+id/action_settings_start_tilt_off"
+            android:title="@string/setting_tilt_start_off_text"
+            />
+</menu>

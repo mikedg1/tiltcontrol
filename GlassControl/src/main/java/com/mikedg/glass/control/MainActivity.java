@@ -45,8 +45,13 @@ public abstract class MainActivity extends Activity {
             case R.string.disable:
                 GlassControlService.turnOff(this);
             break;
+            case R.layout.card_start_tilt_setting:
+                changeStartTiltSetting();
+            break;
         }
     }
+
+    protected abstract void changeStartTiltSetting();
 
 
     protected MainPresentationModel getPresentationModel() {
