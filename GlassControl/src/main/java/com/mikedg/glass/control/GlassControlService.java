@@ -131,7 +131,9 @@ public class GlassControlService extends Service {
         @Override
         public void onReceive(Context context, Intent intent) {
             mTiltStartEnabled = Prefs.getInstance().getTiltStartEnabled();
-            mSensorEventListener.reset();
+            if (mSensorEventListener != null) {
+                mSensorEventListener.reset();
+            }
         }
     };
 
@@ -149,7 +151,6 @@ public class GlassControlService extends Service {
     public void onCreate() {
         super.onCreate();
         mToneGenerator = new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100);
-
         broadcastStarted();
         mTiltStartEnabled = Prefs.getInstance().getTiltStartEnabled();
 

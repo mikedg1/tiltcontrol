@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.mikedg.glass.control">
+          package="com.mikedg.glass.control">
 
     <!-- for showing ip address -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
@@ -9,43 +9,63 @@
     <!-- For debug overlay -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
-    <!-- for status messages -->
+    <!-- for status messages of the service -->
     <uses-permission android:name="android.permission.BROADCAST_STICKY"/>
 
-    <application android:name=".TiltControlApplication"
-        android:allowBackup="true"
-        android:icon="@drawable/ic_launcher"
-        android:label="@string/app_name" >
-        <activity
-            android:name="com.mikedg.glass.control.MainTouchableActivity"
-            android:label="Touch Setup" android:screenOrientation="landscape">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
+    <!-- for ACRA reporting of crashes -->
+    <uses-permission android:name="android.permission.READ_LOGS"></uses-permission>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-            <intent-filter>
-                <action
-                        android:name="com.google.android.glass.action.VOICE_TRIGGER" />
-            </intent-filter>
-            <meta-data android:name="com.google.android.glass.VoiceTrigger"
-                       android:resource="@xml/voice_trigger" />
-        </activity>
+    <application
+            android:name=".TiltControlApplication"
+            android:allowBackup="true"
+            android:icon="@drawable/ic_launcher"
+            android:label="@string/app_name">
         <activity
-                android:name="com.mikedg.glass.control.MainVoiceableActivity"
-                android:label="Voice Setup" android:screenOrientation="landscape">
+                android:name="com.mikedg.glass.control.MainTouchableActivity"
+                android:label="Touch Setup"
+                android:screenOrientation="landscape">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             <intent-filter>
                 <action
-                        android:name="com.google.android.glass.action.VOICE_TRIGGER" />
+                        android:name="com.google.android.glass.action.VOICE_TRIGGER"/>
             </intent-filter>
-            <meta-data android:name="com.google.android.glass.VoiceTrigger"
-                       android:resource="@xml/voice_trigger" />
+
+            <meta-data
+                    android:name="com.google.android.glass.VoiceTrigger"
+                    android:resource="@xml/voice_trigger"/>
         </activity>
+        <!--<activity-->
+        <!--android:name="com.mikedg.glass.control.MainVoiceableActivity"-->
+        <!--android:label="Voice Setup" android:screenOrientation="landscape">-->
+        <!--<intent-filter>-->
+        <!--<action android:name="android.intent.action.MAIN" />-->
+        <!--<category android:name="android.intent.category.LAUNCHER" />-->
+        <!--</intent-filter>-->
+        <!--<intent-filter>-->
+        <!--<action-->
+        <!--android:name="com.google.android.glass.action.VOICE_TRIGGER" />-->
+        <!--</intent-filter>-->
+        <!--<meta-data android:name="com.google.android.glass.VoiceTrigger"-->
+        <!--android:resource="@xml/voice_trigger" />-->
+        <!--</activity>-->
         <service android:name=".GlassControlService"/>
+
+        <activity
+                android:name=".voiceactivities.TiltStartActivity"
+                android:label="Toggle Tilt Start Zone"
+                android:screenOrientation="landscape">
+            <intent-filter>
+                <action
+                        android:name="com.google.android.glass.action.VOICE_TRIGGER"/>
+            </intent-filter>
+            <meta-data
+                    android:name="com.google.android.glass.VoiceTrigger"
+                    android:resource="@xml/voice_trigger"/>
+        </activity>
     </application>
 
 </manifest>

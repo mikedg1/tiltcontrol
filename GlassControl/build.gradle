@@ -27,8 +27,8 @@ android {
 
 
     defaultConfig {
-        minSdkVersion 10
-        targetSdkVersion 19
+        minSdkVersion 15
+        targetSdkVersion 15
         versionName "${versionMajor}-b-${buildTime()}"
         versionCode 1
     }
@@ -43,4 +43,5 @@ android {
 
 dependencies {
     compile 'com.android.support:support-v4:19.0.0'
+    compile 'ch.acra:acra:4.5.0'
 }
