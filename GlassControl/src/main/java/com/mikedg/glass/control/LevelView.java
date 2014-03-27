@@ -71,10 +71,10 @@ public class LevelView extends View {
     /**
      * Set the angle of the level line.
      *
-     * @param angle Angle of the level line.
+     * @param angleRadians Angle of the level line.
      */
-    public void setAngle(float angle) {
-        mAngle = angle;
+    public void setAngle(float angleRadians) {
+        mAngle = angleRadians;
         // Redraw the line.
         invalidate();
     }

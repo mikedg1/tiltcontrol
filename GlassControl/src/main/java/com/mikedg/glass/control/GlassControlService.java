@@ -177,8 +177,8 @@ public class GlassControlService extends Service {
     }
 
     private void setupInputHandler() {
-//        mInputHandler = new TestVoiceInputHandler();
-        mInputHandler = new AdbTcpInputHandler();
+        mInputHandler = new TestVoiceInputHandler();
+//        mInputHandler = new AdbTcpInputHandler();
         mInputHandler.setOnStateChangedListener(new OnStateChangedListener() {
             @Override
             public void onStateChanged(State state) {

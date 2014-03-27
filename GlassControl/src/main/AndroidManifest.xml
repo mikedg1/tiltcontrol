@@ -66,6 +66,18 @@
                     android:name="com.google.android.glass.VoiceTrigger"
                     android:resource="@xml/voice_trigger"/>
         </activity>
+        <activity
+                android:name=".CalibrationActivity"
+                android:label="Calibrate"
+                android:screenOrientation="landscape">
+            <intent-filter>
+                <action
+                        android:name="com.google.android.glass.action.VOICE_TRIGGER"/>
+            </intent-filter>
+            <meta-data
+                    android:name="com.google.android.glass.VoiceTrigger"
+                    android:resource="@xml/voice_trigger"/>
+        </activity>
     </application>
 
 </manifest>
