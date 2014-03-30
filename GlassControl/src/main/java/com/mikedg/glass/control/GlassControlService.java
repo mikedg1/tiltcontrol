@@ -33,6 +33,7 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.view.Gravity;
 import android.view.WindowManager;
+import com.dappervision.wearscript.managers.EyeManager;
 import com.mikedg.glass.control.inputhandler.AdbTcpInputHandler;
 import com.mikedg.glass.control.inputhandler.InputHandler;
 import com.mikedg.glass.control.inputhandler.OnStateChangedListener;
@@ -136,6 +137,7 @@ public class GlassControlService extends Service {
             }
         }
     };
+    private EyeManager mEyeManager;
 
     public IBinder onBind(Intent intent) {
         return null;
@@ -279,6 +281,7 @@ public class GlassControlService extends Service {
         registerReceiver(mReceiver, filter);
 
         registerReceiver(mPrefsBroadcastReceiver, Prefs.getPrefsChangedReceiverIntent());
+        mEyeManager = new EyeManager(this);
     }
 
     public void ack() {
@@ -305,8 +308,11 @@ public class GlassControlService extends Service {
         unregisterReceiver(mReceiver);
         unregisterReceiver(mPrefsBroadcastReceiver);
 
+
         mToneGenerator.release();
 
+        //FIXME: not guaranteed to get called... so this might leave us in an odd state
+        mEyeManager.shutdown();
         super.onDestroy();
     }
 
