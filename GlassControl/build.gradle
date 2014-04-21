@@ -16,7 +16,7 @@ android {
     }
 
     //compileSdkVersion 19
-    compileSdkVersion "Google Inc.:Glass Development Kit Sneak Peek:15"
+    compileSdkVersion "Google Inc.:Glass Development Kit Preview:19"
     buildToolsVersion "19.0.1"
 
 //http://tools.android.com/tech-docs/new-build-system/user-guide

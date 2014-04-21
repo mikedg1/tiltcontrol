@@ -87,13 +87,14 @@ public class GlassControlService extends Service {
                                 return;
                             }
                         } else {
-                            L.d("The screen isn't on yet, so this week should be turning the screen on, so let's enable the sensors and abort the wink broadcast");
+                            L.d("The screen isn't on yet, so this wink should be turning the screen on, so let's enable the sensors and abort the wink broadcast");
                             //L.d("Since that's the case, we want to enable the sensors if everything is connected");
                             //If via wink, enable sensors
 //                            if (mInputHandler.isConnected) {
 //                                L.d("Input handler is connected so let's enable sensors and abort the wink broadcast");
+                            abortBroadcast(); //Was not happening fast enough on XE16?
+                            mPowerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "Tilt Control").acquire(1000);
                             enableSensors();
-                            abortBroadcast();
 //                            } else {
 //                                L.d("Input handler is not connected");
 //                            }

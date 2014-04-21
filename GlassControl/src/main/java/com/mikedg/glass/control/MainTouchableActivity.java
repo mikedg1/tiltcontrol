@@ -41,11 +41,13 @@ public class MainTouchableActivity extends MainActivity implements MainPresentat
         super.onCreate(savedInstanceState);
 
         createCards();
+
+        getPresentationModel().setOnCommandsChangedListener(this);
+
         createScrollView();
 
         setContentView(mCardScrollView);
 
-        getPresentationModel().setOnCommandsChangedListener(this);
         //GlassControlService.launch(this);
     }
 
@@ -153,16 +155,6 @@ public class MainTouchableActivity extends MainActivity implements MainPresentat
 
     private class MainCardScrollAdapter extends CardScrollAdapter {
         @Override
-        public int findIdPosition(Object id) {
-            return -1;
-        }
-
-        @Override
-        public int findItemPosition(Object item) {
-            return mCards.indexOf(item);
-        }
-
-        @Override
         public int getCount() {
             return mCards.size();
         }
@@ -175,7 +167,13 @@ public class MainTouchableActivity extends MainActivity implements MainPresentat
         @Override
         public long getItemId(int position) {
             //FIXME: toView() obviously recreates the view, so tags are missing
+//            getTag is null, wtf... maybe oncommandaschanged not called before this now? correct, not sure it ever was happneing before though
             return ((Integer)((View) getItem(position)).getTag()).longValue();
+        }
+
+        @Override
+        public int getPosition(Object o) {
+            return mCards.indexOf(o);
         }
 
         @Override

@@ -16,6 +16,12 @@
     <uses-permission android:name="android.permission.READ_LOGS"></uses-permission>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
+    <!-- For custom voice command showing up in the Ok, Glass menu -->
+    <uses-permission android:name="com.google.android.glass.permission.DEVELOPMENT" />
+
+    <!-- For turning the screen on after a wink -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application
             android:name=".TiltControlApplication"
             android:allowBackup="true"

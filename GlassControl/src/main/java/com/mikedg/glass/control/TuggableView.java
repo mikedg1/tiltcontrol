@@ -8,22 +8,23 @@ import android.view.ViewGroup;
 import com.google.android.glass.widget.CardScrollAdapter;
 import com.google.android.glass.widget.CardScrollView;
 
-//From https://developers.google.com/glass/develop/gdk/ui/immersions
+//https://developers.google.com/glass/develop/gdk/ui-widgets
 public class TuggableView extends CardScrollView {
 
     private final View mContentView;
 
     /**
-     * Initializes a {@code TuggableView} that uses the specified layout
+     * Initializes a TuggableView that uses the specified layout
      * resource for its user interface.
      */
     public TuggableView(Context context, int layoutResId) {
-        this(context, LayoutInflater.from(context).inflate(layoutResId, null));
+        this(context, LayoutInflater.from(context)
+                .inflate(layoutResId, null));
     }
 
     /**
-     * Initializes a {@code TuggableView} that uses the specified view for its
-     * user interface.
+     * Initializes a TuggableView that uses the specified view
+     * for its user interface.
      */
     public TuggableView(Context context, View view) {
         super(context);
@@ -34,11 +35,11 @@ public class TuggableView extends CardScrollView {
     }
 
     /**
-     * Overridden to return false so that all motion events still bubble up to
-     * the activity's {@link Activity#onGenericMotionEvent(MotionEvent)} method
-     * after they are handled by the card scroller. This allows the activity to
-     * handle TAP gestures using a GestureDetector instead of the card
-     * scroller's OnItemClickedListener.
+     * Overridden to return false so that all motion events still
+     * bubble up to the activity's onGenericMotionEvent() method after
+     * they are handled by the card scroller. This allows the activity
+     * to handle TAP gestures using a GestureDetector instead of the
+     * card scroller's OnItemClickedListener.
      */
     @Override
     protected boolean dispatchGenericFocusedEvent(MotionEvent event) {
@@ -50,12 +51,7 @@ public class TuggableView extends CardScrollView {
     private class SingleCardAdapter extends CardScrollAdapter {
 
         @Override
-        public int findIdPosition(Object id) {
-            return 0;
-        }
-
-        @Override
-        public int findItemPosition(Object item) {
+        public int getPosition(Object item) {
             return 0;
         }
 
@@ -70,8 +66,9 @@ public class TuggableView extends CardScrollView {
         }
 
         @Override
-        public View getView(int position, View recycleView, ViewGroup parent) {
-            return setItemOnCard(getItem(position), mContentView);
+        public View getView(int position, View recycleView,
+                            ViewGroup parent) {
+            return mContentView;
         }
     }
 }
