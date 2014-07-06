@@ -33,17 +33,17 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.view.Gravity;
 import android.view.WindowManager;
-import com.mikedg.glass.control.inputhandler.AdbTcpInputHandler;
+
 import com.mikedg.glass.control.inputhandler.InputHandler;
+import com.mikedg.glass.control.inputhandler.MyGlassLoopbackInputHandler;
 import com.mikedg.glass.control.inputhandler.OnStateChangedListener;
-import com.mikedg.glass.control.inputhandler.TestVoiceInputHandler;
 
 public class GlassControlService extends Service {
     public static final boolean SHOULD_SIM_KEYS = true;
     public static final boolean SHOULD_SHOW_OVERLAY = false;
     public static final boolean SHOULD_SENSOR = true;
 
-    public static final String ACTION_WINK = "com.google.glass.action.EYE_GESTURE";
+    public static final String ACTION_WINK = "com.google.android.glass.action.EYE_GESTURE";
     public static final String EXTRA_SERVICE_RUNNING_STATUS = "EXTRA_SERVICE_RUNNING_STATUS";
     private static String ACTION_STATUS_BROADCAST = GlassControlService.class.getName() + ".ACTION_STATUS_BROADCAST";
 
@@ -179,7 +179,9 @@ public class GlassControlService extends Service {
 
     private void setupInputHandler() {
 //        mInputHandler = new TestVoiceInputHandler();
-        mInputHandler = new AdbTcpInputHandler();
+//        mInputHandler = new AdbTcpInputHandler();
+        mInputHandler = new MyGlassLoopbackInputHandler();
+
         mInputHandler.setOnStateChangedListener(new OnStateChangedListener() {
             @Override
             public void onStateChanged(State state) {

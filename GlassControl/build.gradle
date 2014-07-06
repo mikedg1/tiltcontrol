@@ -14,34 +14,38 @@ android {
     lintOptions {
         abortOnError false
     }
-
     //compileSdkVersion 19
-    compileSdkVersion "Google Inc.:Glass Development Kit Preview:19"
-    buildToolsVersion "19.0.1"
-
+    compileSdkVersion 'Google Inc.:Glass Development Kit Preview:19'
+    buildToolsVersion '20.0.0'
 //http://tools.android.com/tech-docs/new-build-system/user-guide
-
     repositories {
         mavenCentral()
     }
-
-
     defaultConfig {
         minSdkVersion 15
         targetSdkVersion 15
-        versionName "${versionMajor}-b-${buildTime()}"
         versionCode 1
     }
-
     buildTypes {
         release {
             runProguard false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.txt'
         }
     }
+//    sourceSets {
+//        main {
+//            java {
+//                //Adds rather than replaces
+//                srcDir '../btcomm/src/main'
+//            }
+//        }
+//    }
+    productFlavors {
+    }
 }
 
 dependencies {
     compile 'com.android.support:support-v4:19.0.0'
     compile 'ch.acra:acra:4.5.0'
+    compile project(':btcomm')
 }

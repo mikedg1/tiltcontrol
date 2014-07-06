@@ -1,1 +1,1 @@
-include ':GlassControl'
+include ':btcomm', ':GlassControl',  ':tiltcontrolcontroller'
