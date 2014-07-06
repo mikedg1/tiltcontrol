@@ -37,6 +37,7 @@ import java.util.UUID;
 public class BluetoothClientConnector extends com.mikedg.android.btcomm.connector.BluetoothConnector {
     // Unique UUID for this application
     private static final UUID MY_UUID = UUID.fromString("d0c722b0-7e15-11e1-b0c4-0800200c9a66");
+    private final Handler mHandler;
 
     // Member fields
     private ConnectThread mConnectThread;
@@ -50,6 +51,7 @@ public class BluetoothClientConnector extends com.mikedg.android.btcomm.connecto
      */
     public BluetoothClientConnector(Context context) {
         super(context);
+        mHandler = new Handler(context.getMainLooper());
     }
 
     @Override
@@ -162,9 +164,14 @@ public class BluetoothClientConnector extends com.mikedg.android.btcomm.connecto
 
     @Override
     public void messageReceived(byte[] buffer) {
-        PTGCMessage message = new com.mikedg.android.btcomm.connector.ConnectorHelper().getPtgcFromBytes(buffer);
+        final PTGCMessage message = new com.mikedg.android.btcomm.connector.ConnectorHelper().getPtgcFromBytes(buffer);
 
-        Configuration.bus.post(message);
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                Configuration.bus.post(message);
+            }
+        });
     }
 
 }
