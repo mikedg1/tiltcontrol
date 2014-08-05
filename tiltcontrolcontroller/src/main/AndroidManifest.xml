@@ -2,10 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.mikedg.android.tiltcontrolcontroller" >
 
-    <uses-permission android:name="android.permission.BLUETOOTH" />
-    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
-    <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED" />
-    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.BLUETOOTH" /> <!-- Connection to Glass -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" /> <!-- Connection to Glass -->
+    <uses-permission android:name="android.permission.BLUETOOTH_PRIVILEGED" /> <!-- Connection to Glass -->
+    <uses-permission android:name="android.permission.INTERNET" /> <!-- Connection to Glass -->
+    <uses-permission android:name="android.permission.GET_TASKS" /> <!-- Helps figure out if MYGLASS is running -->
 
     <application
         android:name=".Application"

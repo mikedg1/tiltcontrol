@@ -56,9 +56,86 @@ public class GlassControlService extends Service {
     private PowerManager mPowerManager;
     private boolean mTiltControlListening;
     private OnStateChangedListener.State mInputHandlerState = OnStateChangedListener.State.NOT_READY;
+
+    private BroadcastReceiver mWinkReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            abortBroadcast(); //Force it, otherwise we wind up with a situation where winks sometimes get caught as pictures
+
+//            manyally take picture if thats whats going!
+            if (ACTION_WINK.equals(intent.getAction())) {
+                L.d("We got a wink");
+
+                if (mInputHandlerState == OnStateChangedListener.State.READY) {
+                    L.d("And our input handler state is ready, so let's check some more things");
+                    if (mPowerManager.isScreenOn()) { //Could be that this is a race condition? and mTiltControlListening is false
+                        L.d("The screen is on");
+                        if (mTiltControlListening) {
+                            L.d("We are listening for controls, so we want to ack and select now");
+                            if (SHOULD_SIM_KEYS) {
+                                mInputHandler.select();
+                            }
+                            abortBroadcast();
+                            L.d("We are aborting the wink broadcast");
+
+                            ack(); //Works just harder to hear
+                        } else {
+                            //Let the standard handler grab the wink
+                            L.d("But we are not listening for controls");
+                            //FIXME: this makes us miss a normal one
+                            clearAbortBroadcast();
+                            return;
+                        }
+                    } else {
+                        mPowerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "Tilt Control").acquire(1000);
+                        L.d("The screen isn't on yet, so this wink should be turning the screen on, so let's enable the sensors and abort the wink broadcast");
+                        //L.d("Since that's the case, we want to enable the sensors if everything is connected");
+                        //If via wink, enable sensors
+//                            if (mInputHandler.isConnected) {
+//                                L.d("Input handler is connected so let's enable sensors and abort the wink broadcast");
+                        abortBroadcast(); //Was not happening fast enough on XE16?
+                        L.d("We are aborting the wink broadcast");
+
+                        enableSensors();
+//                            } else {
+//                                L.d("Input handler is not connected");
+//                            }
+                    }
+                } else {
+                    L.d("But our input handler is not ready:" + mInputHandlerState);
+                    clearAbortBroadcast();
+                }
+            }
+
+        }
+    };
+
+    private void enableSensors() {
+        L.d("Trying to register sensor listeners");
+        if (!mTiltControlListening) {
+            mTiltControlListening = true;
+            setupSensors();
+        } else {
+            L.d("but we are already listening");
+        }
+    }
+
+    private void disableSensors() {
+        if (mTiltControlListening) {
+            mTiltControlListening = false;
+
+            L.d("Unregistering sensor listeners");
+            mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+            mSensorManager.unregisterListener(mSensorEventListener);
+        }
+    }
+
     private BroadcastReceiver mReceiver = new BroadcastReceiver() {
             @Override
-            public void onReceive(Context context, Intent intent) {
+            public void onReceive(Context context, Intent intent) { //FIXME: maybe split these out to handle certain things quicker? maybe its just too complicatedfligh
+
+//                abortBroadcast(); //appears to work all the time
+
                 L.d("In Tilt Control's receiver");
 
                 if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
@@ -68,62 +145,9 @@ public class GlassControlService extends Service {
                 } else if (Intent.ACTION_SCREEN_ON.equals(intent.getAction())) {
                     //Unless we woke up with a wink, we don't want to enable anything
                     L.d("The screen just came on, but we do things off other triggers");
-                } else if (ACTION_WINK.equals(intent.getAction())) {
-                    L.d("We got a wink");
-                    if (mInputHandlerState == OnStateChangedListener.State.READY) {
-                        L.d("And our input handler state is ready, so let's check some more things");
-                        if (mPowerManager.isScreenOn()) { //Could be that this is a race condition? and mTiltControlListening is false
-                            L.d("The screen is on");
-                            if (mTiltControlListening) {
-                                L.d("We are listening for controls, so we want to ack and select now");
-                                if (SHOULD_SIM_KEYS) {
-                                    mInputHandler.select();
-                                }
-                                ack(); //Works just harder to hear
-                                abortBroadcast();
-                            } else {
-                                //Let the standard handler grab the wink
-                                L.d("But we are not listening for controls");
-                                return;
-                            }
-                        } else {
-                            L.d("The screen isn't on yet, so this wink should be turning the screen on, so let's enable the sensors and abort the wink broadcast");
-                            //L.d("Since that's the case, we want to enable the sensors if everything is connected");
-                            //If via wink, enable sensors
-//                            if (mInputHandler.isConnected) {
-//                                L.d("Input handler is connected so let's enable sensors and abort the wink broadcast");
-                            abortBroadcast(); //Was not happening fast enough on XE16?
-                            mPowerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "Tilt Control").acquire(1000);
-                            enableSensors();
-//                            } else {
-//                                L.d("Input handler is not connected");
-//                            }
-                        }
-                    } else {
-                        L.d("But our input handler is not ready:" + mInputHandlerState);
-                    }
                 }
             }
 
-        private void enableSensors() {
-            L.d("Trying to register sensor listeners");
-            if (!mTiltControlListening) {
-                mTiltControlListening = true;
-                setupSensors();
-            } else {
-                L.d("but we are already listening");
-            }
-        }
-
-        private void disableSensors() {
-            if (mTiltControlListening) {
-                mTiltControlListening = false;
-
-                L.d("Unregistering sensor listeners");
-                mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-                mSensorManager.unregisterListener(mSensorEventListener);
-            }
-        }
     };
     private ToneGenerator mToneGenerator;
 
@@ -275,11 +299,12 @@ public class GlassControlService extends Service {
     private void setupReceivers() {
         IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_ON);
         filter.addAction(Intent.ACTION_SCREEN_OFF);
-        filter.addAction(ACTION_WINK);
-
-        filter.setPriority(3000); //FIXME: do this more intelligently, we just want to make sure we guarantee our Wink's are received to this app
-
+        filter.setPriority(10000); //FIXME: do this more intelligently, we just want to make sure we guarantee our Wink's are received to this app
         registerReceiver(mReceiver, filter);
+
+        IntentFilter winkFilter = new IntentFilter(ACTION_WINK);
+        filter.setPriority(10000); //FIXME: do this more intelligently, we just want to make sure we guarantee our Wink's are received to this app
+        registerReceiver(mWinkReceiver, winkFilter);
 
         registerReceiver(mPrefsBroadcastReceiver, Prefs.getPrefsChangedReceiverIntent());
     }
@@ -306,6 +331,7 @@ public class GlassControlService extends Service {
         broadcastStopped();
         mInputHandler.stop();
         unregisterReceiver(mReceiver);
+        unregisterReceiver(mWinkReceiver);
         unregisterReceiver(mPrefsBroadcastReceiver);
 
         mToneGenerator.release();
