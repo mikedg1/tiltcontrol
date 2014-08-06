@@ -36,7 +36,6 @@ public class CommandMessage extends PTGCMessage {
     @Override
     public JSONObject getPayload() {
         JSONObject object = new JSONObject();
-        //No payload
         try {
             object.put(KEY_COMMAND, mCommand);
         } catch (JSONException e) {

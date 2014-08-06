@@ -95,4 +95,12 @@ public class MainActivity extends Activity {
         }
 
     }
+
+    public void onClick_appInfo(View view) {
+        AppUtil.startMyGlassAppInfo(this);
+    }
+
+    public void onClick_simWink(View view) {
+        Application.getBus().post(new SimWinkEvent());
+    }
 }

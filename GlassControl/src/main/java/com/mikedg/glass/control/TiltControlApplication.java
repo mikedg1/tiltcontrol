@@ -2,7 +2,11 @@ package com.mikedg.glass.control;
 
 import android.app.Application;
 import android.content.Context;
+
+import com.mikedg.android.btcomm.Configuration;
 import com.mikedg.glass.control.acra.SdCardReportSender;
+import com.squareup.otto.Bus;
+
 import org.acra.ACRA;
 import org.acra.annotation.ReportsCrashes;
 
@@ -12,6 +16,7 @@ import org.acra.annotation.ReportsCrashes;
 @ReportsCrashes(formKey = "")
 public class TiltControlApplication extends Application {
     private static TiltControlApplication sContext;
+    private static Bus sBus;
 
     @Override
     public void onCreate() {
@@ -19,6 +24,9 @@ public class TiltControlApplication extends Application {
         setupAcra();
 
         sContext = this;
+
+        sBus = new Bus();
+        Configuration.bus = sBus;
     }
 
     private void setupAcra() {

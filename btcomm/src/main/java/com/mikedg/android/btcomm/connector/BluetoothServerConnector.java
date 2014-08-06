@@ -19,6 +19,7 @@ package com.mikedg.android.btcomm.connector;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
+import android.os.Handler;
 import android.util.Log;
 
 import com.mikedg.android.btcomm.Configuration;
@@ -39,6 +40,7 @@ public class BluetoothServerConnector extends BluetoothConnector {
 
     // Unique UUID for this application
     private static final UUID MY_UUID = UUID.fromString("d0c722b0-7e15-11e1-b0c4-0800200c9a66");
+    private final Handler mHandler;
 
     // Member fields
     private AcceptThread mAcceptThread;
@@ -50,6 +52,7 @@ public class BluetoothServerConnector extends BluetoothConnector {
      */
     public BluetoothServerConnector(Context context) {
         super(context);
+        mHandler = new Handler(context.getMainLooper());
     }
 
     @Override
@@ -67,9 +70,15 @@ public class BluetoothServerConnector extends BluetoothConnector {
 
     @Override
     public void messageReceived(byte[] buffer) {
-        PTGCMessage message = getPtgcFromBytes(this, buffer);
+        //FIXME: why was this different, and why do we create a new ConenctorHelper every time
+        final PTGCMessage message = new com.mikedg.android.btcomm.connector.ConnectorHelper().getPtgcFromBytes(buffer);
 
-        Configuration.bus.post(message);
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                Configuration.bus.post(message);
+            }
+        });
     }
 
     /**
@@ -171,4 +180,6 @@ public class BluetoothServerConnector extends BluetoothConnector {
             }
         }
     }
+
+
 }

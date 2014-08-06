@@ -34,9 +34,11 @@ import android.os.PowerManager;
 import android.view.Gravity;
 import android.view.WindowManager;
 
+import com.mikedg.android.btcomm.Configuration;
 import com.mikedg.glass.control.inputhandler.InputHandler;
 import com.mikedg.glass.control.inputhandler.MyGlassLoopbackInputHandler;
 import com.mikedg.glass.control.inputhandler.OnStateChangedListener;
+import com.squareup.otto.Subscribe;
 
 public class GlassControlService extends Service {
     public static final boolean SHOULD_SIM_KEYS = true;
@@ -67,40 +69,7 @@ public class GlassControlService extends Service {
                 L.d("We got a wink");
 
                 if (mInputHandlerState == OnStateChangedListener.State.READY) {
-                    L.d("And our input handler state is ready, so let's check some more things");
-                    if (mPowerManager.isScreenOn()) { //Could be that this is a race condition? and mTiltControlListening is false
-                        L.d("The screen is on");
-                        if (mTiltControlListening) {
-                            L.d("We are listening for controls, so we want to ack and select now");
-                            if (SHOULD_SIM_KEYS) {
-                                mInputHandler.select();
-                            }
-                            abortBroadcast();
-                            L.d("We are aborting the wink broadcast");
-
-                            ack(); //Works just harder to hear
-                        } else {
-                            //Let the standard handler grab the wink
-                            L.d("But we are not listening for controls");
-                            //FIXME: this makes us miss a normal one
-                            clearAbortBroadcast();
-                            return;
-                        }
-                    } else {
-                        mPowerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "Tilt Control").acquire(1000);
-                        L.d("The screen isn't on yet, so this wink should be turning the screen on, so let's enable the sensors and abort the wink broadcast");
-                        //L.d("Since that's the case, we want to enable the sensors if everything is connected");
-                        //If via wink, enable sensors
-//                            if (mInputHandler.isConnected) {
-//                                L.d("Input handler is connected so let's enable sensors and abort the wink broadcast");
-                        abortBroadcast(); //Was not happening fast enough on XE16?
-                        L.d("We are aborting the wink broadcast");
-
-                        enableSensors();
-//                            } else {
-//                                L.d("Input handler is not connected");
-//                            }
-                    }
+                    winkTriggered(this);
                 } else {
                     L.d("But our input handler is not ready:" + mInputHandlerState);
                     clearAbortBroadcast();
@@ -109,6 +78,8 @@ public class GlassControlService extends Service {
 
         }
     };
+    private BTReceiver mBtReceiver;
+    private Object mWinkEventReceiver;
 
     private void enableSensors() {
         L.d("Trying to register sensor listeners");
@@ -193,6 +164,59 @@ public class GlassControlService extends Service {
         }
 
         setupReceivers();
+
+        //Commands that come over the BT path
+        mBtReceiver = new BTReceiver();
+        Configuration.bus.register(mBtReceiver);
+
+        //Specific app actions to handle
+        mWinkEventReceiver = new Object() {
+            @Subscribe
+            public void gotWinkEvent(BTReceiver.WinkEvent event) {
+                L.d("We got a simulated wink");
+
+                winkTriggered(null);
+            }
+        };
+        Configuration.bus.register(mWinkEventReceiver);
+    }
+
+    private void winkTriggered(BroadcastReceiver receiver) {
+        L.d("And our input handler state is ready, so let's check some more things");
+        if (mPowerManager.isScreenOn()) { //Could be that this is a race condition? and mTiltControlListening is false
+            L.d("The screen is on");
+            if (mTiltControlListening) {
+                L.d("We are listening for controls, so we want to ack and select now");
+                if (SHOULD_SIM_KEYS) {
+                    mInputHandler.select();
+                }
+
+                if (receiver != null) receiver.abortBroadcast();
+                L.d("We are aborting the wink broadcast");
+
+                ack(); //Works just harder to hear
+            } else {
+                //Let the standard handler grab the wink
+                L.d("But we are not listening for controls");
+                //FIXME: this makes us miss a normal one
+                if (receiver != null) receiver.clearAbortBroadcast();
+                return;
+            }
+        } else {
+            mPowerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP, "Tilt Control").acquire(1000);
+            L.d("The screen isn't on yet, so this wink should be turning the screen on, so let's enable the sensors and abort the wink broadcast");
+            //L.d("Since that's the case, we want to enable the sensors if everything is connected");
+            //If via wink, enable sensors
+//                            if (mInputHandler.isConnected) {
+//                                L.d("Input handler is connected so let's enable sensors and abort the wink broadcast");
+            if (receiver != null) receiver.abortBroadcast(); //Was not happening fast enough on XE16?
+            L.d("We are aborting the wink broadcast");
+
+            enableSensors();
+//                            } else {
+//                                L.d("Input handler is not connected");
+//                            }
+        }
     }
 
     public void broadcastStarted() {
@@ -310,7 +334,11 @@ public class GlassControlService extends Service {
     }
 
     public void ack() {
-        mToneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP);
+        try {
+            mToneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP); //FIXME: keep getting a crash here method called after release, but something else must be happening right?
+        } catch (Exception x) {
+            x.printStackTrace();
+        }
     }
 
     private static final Intent getServiceIntent(Context context) {
@@ -333,6 +361,9 @@ public class GlassControlService extends Service {
         unregisterReceiver(mReceiver);
         unregisterReceiver(mWinkReceiver);
         unregisterReceiver(mPrefsBroadcastReceiver);
+
+        Configuration.bus.unregister(mWinkEventReceiver);
+        Configuration.bus.unregister(mBtReceiver);
 
         mToneGenerator.release();
 

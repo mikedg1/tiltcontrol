@@ -2,6 +2,7 @@ package com.mikedg.android.btcomm.connector;
 
 import com.mikedg.android.btcomm.messages.CommandMessage;
 import com.mikedg.android.btcomm.messages.PTGCMessage;
+import com.mikedg.android.btcomm.messages.SimWinkMessage;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -39,6 +40,7 @@ public class ConnectorHelper {
 //        register(CameraMessage.class);
 //        register(VolumeMessage.class);
         register(CommandMessage.class);
+        register(SimWinkMessage.class);
     }
     public PTGCMessage getPtgcFromBytes(byte[] buffer) {
         try{

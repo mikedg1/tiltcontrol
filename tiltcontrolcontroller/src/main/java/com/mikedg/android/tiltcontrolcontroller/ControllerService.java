@@ -9,6 +9,8 @@ import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.TaskStackBuilder;
 
 import com.mikedg.android.btcomm.connector.BluetoothClientConnector;
+import com.mikedg.android.btcomm.messages.SimWinkMessage;
+import com.squareup.otto.Subscribe;
 
 /**
  * Service that create imposter MyGlass connection to Glass device.
@@ -68,6 +70,7 @@ public class ControllerService extends Service {
         mCommandReceiver = new CommandReceiver();
         Application.getBus().register(mCommandReceiver);
 
+
         mBluetoothConnector = new BluetoothClientConnector(this);
         mBluetoothConnector.connect(mGlassController.device);
     }
@@ -81,8 +84,8 @@ public class ControllerService extends Service {
 
     public NotificationCompat.Builder createNormalNotification(NotificationCompat.Builder builder) {
         builder.setSmallIcon(R.drawable.ic_launcher)
-                .setContentTitle("My notification")
-                .setContentText("Hello World!");
+                .setContentTitle("Tilt Control Controller")
+                .setContentText("Status"); //FIXME: most recent status
 // Creates an explicit intent for an Activity in your app
         Intent resultIntent = new Intent(this, MainActivity.class);
 
@@ -111,14 +114,21 @@ public class ControllerService extends Service {
         String[] events = new String[6];
 // Sets a title for the Inbox style big view
         inboxStyle.setBigContentTitle("Tilt Control Controller");
+
 // Moves events into the big view
         for (int i = 0; i < events.length; i++) {
 
-            inboxStyle.addLine(events[i]);
+            inboxStyle.addLine(i + " " + events[i]);
         }
 // Moves the big view style object into the notification object.
         builder.setStyle(inboxStyle);
 //        builder.addAction()
+
         return builder;
+    }
+
+    @Subscribe
+    public void gotSimWink(SimWinkEvent event) {
+        mBluetoothConnector.write(new SimWinkMessage());
     }
 }

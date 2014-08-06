@@ -30,5 +30,4 @@ public abstract class PTGCMessage {
     
     public abstract String getType();
     public abstract JSONObject getPayload();
-//    public abstract void doMyThing(Context context);
 }

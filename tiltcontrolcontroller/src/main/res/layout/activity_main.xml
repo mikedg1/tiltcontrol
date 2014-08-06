@@ -134,4 +134,23 @@
         android:layout_toRightOf="@+id/button4"
         android:text="Connect" />
 
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="App Info"
+        android:id="@+id/button13"
+        android:onClick="onClick_appInfo"
+        android:layout_above="@+id/button3"
+        android:layout_toStartOf="@+id/button5"
+        android:layout_marginBottom="49dp" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Sim Wink"
+        android:id="@+id/button14"
+        android:onClick="onClick_simWink"
+        android:layout_alignParentBottom="true"
+        android:layout_toEndOf="@+id/button3" />
+
 </RelativeLayout>
