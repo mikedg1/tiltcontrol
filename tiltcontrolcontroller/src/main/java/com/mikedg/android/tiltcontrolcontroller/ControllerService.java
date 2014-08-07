@@ -1,5 +1,7 @@
 package com.mikedg.android.tiltcontrolcontroller;
 
+import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
@@ -8,8 +10,12 @@ import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.TaskStackBuilder;
 
+import com.mikedg.android.btcomm.Configuration;
 import com.mikedg.android.btcomm.connector.BluetoothClientConnector;
+import com.mikedg.android.btcomm.connector.BluetoothConnector;
 import com.mikedg.android.btcomm.messages.SimWinkMessage;
+import com.mikedg.android.tiltcontrolcontroller.events.SimWinkEvent;
+import com.mikedg.android.tiltcontrolcontroller.events.StatusMessageEvent;
 import com.squareup.otto.Subscribe;
 
 /**
@@ -22,6 +28,7 @@ public class ControllerService extends Service {
     private GlassController mGlassController;
     private CommandReceiver mCommandReceiver;
     private BluetoothClientConnector mBluetoothConnector;
+    private String mMessages = "";
 
     public static final void startService(Context context) {
         Intent i = new Intent(context, ControllerService.class);
@@ -47,6 +54,8 @@ public class ControllerService extends Service {
         Application.getBus().unregister(mCommandReceiver);
 
         mGlassController.disconnect();
+
+        Configuration.bus.post(new StatusMessageEvent("Stopped service."));
     }
 
     @Override
@@ -71,15 +80,21 @@ public class ControllerService extends Service {
         Application.getBus().register(mCommandReceiver);
 
 
-        mBluetoothConnector = new BluetoothClientConnector(this);
+        mBluetoothConnector = new BluetoothClientConnector();
         mBluetoothConnector.connect(mGlassController.device);
+        Configuration.bus.post(new StatusMessageEvent("Started service."));
     }
 
     private void makeForeground() {
+        NotificationCompat.Builder builder = createNotification();
+        startForeground(ONGOING_NOTIFICATION_ID, builder.build());
+    }
+
+    private NotificationCompat.Builder createNotification() {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
         createBigNotification(builder);
         createNormalNotification(builder);
-        startForeground(ONGOING_NOTIFICATION_ID, builder.build());
+        return builder;
     }
 
     public NotificationCompat.Builder createNormalNotification(NotificationCompat.Builder builder) {
@@ -111,13 +126,12 @@ public class ControllerService extends Service {
     public NotificationCompat.Builder createBigNotification(NotificationCompat.Builder builder) {
         NotificationCompat.InboxStyle inboxStyle =
                 new NotificationCompat.InboxStyle();
-        String[] events = new String[6];
 // Sets a title for the Inbox style big view
         inboxStyle.setBigContentTitle("Tilt Control Controller");
 
 // Moves events into the big view
+        String[] events = mMessages.split("\n", 6);
         for (int i = 0; i < events.length; i++) {
-
             inboxStyle.addLine(i + " " + events[i]);
         }
 // Moves the big view style object into the notification object.
@@ -130,5 +144,24 @@ public class ControllerService extends Service {
     @Subscribe
     public void gotSimWink(SimWinkEvent event) {
         mBluetoothConnector.write(new SimWinkMessage());
+    }
+
+    @Subscribe
+    public void gotStatusMessage(StatusMessageEvent event) {
+        appendStatus(event.getMessage());
+    }
+
+    @Subscribe
+    public void gotConnectorEvent(BluetoothConnector.ConnectorEvent event) {
+        appendStatus("BT State: " + event.getState());
+    }
+
+    private void appendStatus(String message) {
+        mMessages = message + '\n' + mMessages;
+
+        NotificationCompat.Builder builder = createNotification();
+        NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mNotificationManager.notify(ONGOING_NOTIFICATION_ID, builder.build());
+
     }
 }

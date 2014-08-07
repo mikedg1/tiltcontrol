@@ -22,9 +22,11 @@ import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.util.Log;
 
+import com.mikedg.android.btcomm.Configuration;
 import com.mikedg.android.btcomm.messages.PTGCMessage;
 
 import org.json.JSONException;
@@ -61,7 +63,7 @@ public abstract class BluetoothConnector {
 
     // Member fields
     protected final BluetoothAdapter mAdapter;
-//    private final Handler mHandler;
+    private final Handler mHandler;
     protected ConnectedThread mConnectedThread;
     protected int mState;
 
@@ -77,10 +79,10 @@ public abstract class BluetoothConnector {
      *
      * @param context The UI Activity Context
      */
-    public BluetoothConnector(Context context) {
+    public BluetoothConnector() {
         mAdapter = BluetoothAdapter.getDefaultAdapter();
         mState = STATE_NONE;
-//        mHandler = handler;
+        mHandler = new Handler(Looper.getMainLooper());
     }
 
 
@@ -89,12 +91,18 @@ public abstract class BluetoothConnector {
      *
      * @param state An integer defining the current connection state
      */
-    protected synchronized void setState(int state) {
+    protected synchronized void setState(final int state) {
         if (D) Log.d(TAG, "setState() " + mState + " -> " + state);
         mState = state;
 
         //FIXME: Give the new state to the Handler so the UI Activity can update
 //        mHandler.obtainMessage(MESSAGE_STATE_CHANGE, state, -1).sendToTarget();
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                Configuration.bus.post(new ConnectorEvent(state));
+            }
+        });
     }
 
     /**
@@ -341,5 +349,17 @@ public abstract class BluetoothConnector {
 
     public PTGCMessage getPtgcFromBytes(BluetoothConnector connector, byte[] buffer) {
         return mConnectorHelper.getPtgcFromBytes(connector, buffer);
+    }
+
+    public static class ConnectorEvent {
+        private int mState;
+
+        public ConnectorEvent(int state) {
+            mState = state;
+        }
+
+        public int getState() {
+            return mState;
+        }
     }
 }

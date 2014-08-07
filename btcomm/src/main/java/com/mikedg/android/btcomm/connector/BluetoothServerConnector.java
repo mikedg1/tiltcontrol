@@ -20,6 +20,7 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import com.mikedg.android.btcomm.Configuration;
@@ -50,9 +51,9 @@ public class BluetoothServerConnector extends BluetoothConnector {
      *
      * @param context The UI Activity Context
      */
-    public BluetoothServerConnector(Context context) {
-        super(context);
-        mHandler = new Handler(context.getMainLooper());
+    public BluetoothServerConnector() {
+        super();
+        mHandler = new Handler(Looper.getMainLooper());
     }
 
     @Override

@@ -1,23 +1,43 @@
 package com.mikedg.android.tiltcontrolcontroller;
 
 import android.app.Activity;
+import android.app.NotificationManager;
+import android.content.Context;
 import android.os.Bundle;
+import android.support.v4.app.NotificationCompat;
 import android.view.View;
+import android.widget.TextView;
 
+import com.mikedg.android.btcomm.Configuration;
+import com.mikedg.android.btcomm.connector.BluetoothConnector;
 import com.mikedg.android.btcomm.connector.ConnectorHelper;
 import com.mikedg.android.btcomm.messages.CommandMessage;
 import com.mikedg.android.btcomm.messages.PTGCMessage;
+import com.mikedg.android.tiltcontrolcontroller.events.SimWinkEvent;
+import com.mikedg.android.tiltcontrolcontroller.events.StatusMessageEvent;
+import com.squareup.otto.Subscribe;
 
 import org.json.JSONException;
 
 public class MainActivity extends Activity {
 
+    private TextView mLogTextView;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        Configuration.bus.register(this);
+        mLogTextView = (TextView) findViewById(R.id.textView);
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+
+        Configuration.bus.unregister(this);
+    }
 //
 //    @Override
 //    public boolean onCreateOptionsMenu(Menu menu) {
@@ -78,7 +98,7 @@ public class MainActivity extends Activity {
     }
 
     private void prepLoop(int command) {
-        //make a new messgae;
+        //make a new message;
         PTGCMessage message = new CommandMessage(command);
 
         //get the bytes;
@@ -102,5 +122,19 @@ public class MainActivity extends Activity {
 
     public void onClick_simWink(View view) {
         Application.getBus().post(new SimWinkEvent());
+    }
+
+    @Subscribe
+    public void gotStatusMessage(StatusMessageEvent event) {
+        addToLog(event.getMessage());
+    }
+
+    private void addToLog(String message) {
+        mLogTextView.setText(message + '\n' + mLogTextView.getText());
+    }
+
+    @Subscribe
+    public void gotConnectorEvent(BluetoothConnector.ConnectorEvent event) {
+        addToLog("BT State: " + event.getState());
     }
 }

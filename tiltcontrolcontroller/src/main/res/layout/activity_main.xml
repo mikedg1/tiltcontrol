@@ -153,4 +153,15 @@
         android:layout_alignParentBottom="true"
         android:layout_toEndOf="@+id/button3" />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:text="Small Text"
+        android:id="@+id/textView"
+        android:layout_above="@+id/button6"
+        android:layout_below="@+id/button12"
+        android:layout_alignParentEnd="true"
+        android:layout_toEndOf="@+id/button13" />
+
 </RelativeLayout>

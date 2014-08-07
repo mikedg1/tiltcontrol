@@ -43,7 +43,7 @@ public class MyGlassLoopbackInputHandler extends BaseInputHandler {
     public void start() {
 //        we connect to the phone, which tells the myglass service to connect to us...
 //        still runs into problems where something isnt running so might as well just sit on here
-        connector = new BluetoothServerConnector(TiltControlApplication.getContext());
+        connector = new BluetoothServerConnector();
 
         connector.start();
         onStateChanged(OnStateChangedListener.State.READY); //FIXME: not actually ready but should be good
