@@ -17,6 +17,7 @@ package com.mikedg.glass.control;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.view.WindowManager;
 
 public abstract class MainActivity extends Activity {
     private MainPresentationModel mPresentationModel;
@@ -25,10 +26,12 @@ public abstract class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(new TuggableView(this, R.layout.activity_main));
+        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); //FIXME: maybe debug only
 
         mPresentationModel = new MainPresentationModel();
         //FIXME: I'm probably going to forget that this happens
         GlassControlService.launch(this); //Launch immediately so it helps people with disabilities!
+
     }
 
     @Override
