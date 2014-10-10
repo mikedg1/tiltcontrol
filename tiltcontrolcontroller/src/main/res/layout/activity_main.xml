@@ -157,16 +157,7 @@
                 android:onClick="onClick_appInfo"
                 android:text="App Info" />
 
-            <com.shamanland.fab.FloatingActionButton
-                android:id="@+id/button14"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:src="@drawable/ic_launcher"
-                android:layout_alignParentBottom="true"
-                android:layout_toEndOf="@+id/button3"
-                app:floatingActionButtonSize="mini"
-                android:onClick="onClick_simWink"
-                />
+            
             <TextView
                 android:id="@+id/textView"
                 android:layout_width="wrap_content"
