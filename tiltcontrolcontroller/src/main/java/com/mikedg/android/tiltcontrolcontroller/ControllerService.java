@@ -73,7 +73,7 @@ public class ControllerService extends Service {
 
         makeForeground();
 
-        mGlassController = new GlassController();
+        mGlassController = new GlassController(); //FIXME: glass controller does some crazy junk and shouldnt be on main thread
         Application.getBus().register(mGlassController);
 
         mCommandReceiver = new CommandReceiver();
