@@ -8,7 +8,7 @@ android {
     }
     defaultConfig {
         applicationId "com.mikedg.tiltcontrolcontroller"
-        minSdkVersion 17
+        minSdkVersion 19
         targetSdkVersion 19
         versionCode 1
         versionName "1.0"
@@ -30,12 +30,21 @@ android {
 //    }
 }
 
+repositories {
+    maven {
+        url "https://repo.commonsware.com.s3.amazonaws.com"
+    }
+}
+
+
 dependencies {
 //    compile 'com.squareup:otto:1.3.4'
     compile 'com.android.support:support-v4:19.0.0'
     compile "com.android.support:appcompat-v7:19.0.+"
 
-    compile 'com.polysfactory.lib.glass.bluetooth:glass-bluetooth:0.1.+'
+
+    compile 'com.commonsware.cwac:merge:1.0.2'
+    compile 'com.polysfactory.lib.glass.bluetooth:glass-bluetooth:0.1.+' //Glass control
     compile fileTree(dir: 'libs', include: ['*.jar'])
 
     compile project(':btcomm')
